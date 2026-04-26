@@ -238,8 +238,7 @@ def VistaConsultarGuia(request):
                         "api_key": api_key,
                         "url": url_rastreo,
                         "render_js": "true",
-                        "wait": "5000",
-                        "js_scenario": '{"instructions":[{"click":"#collapseButton"},{"wait":3000}]}',
+                        "wait": "8000",
                     },
                     timeout=120,
                 )
