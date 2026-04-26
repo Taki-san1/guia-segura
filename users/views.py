@@ -9,14 +9,11 @@ from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.db import models
 import time
+import os
+import requests as req
 
 # Scraping
 from datetime import datetime
-try:
-    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-    PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
 from bs4 import BeautifulSoup
 
 # Modelos y Formularios
@@ -67,10 +64,8 @@ def activar_usuario(request, user_id):
     usuario = get_object_or_404(User, id=user_id)
     usuario.is_active = True
     usuario.save()
-
     messages.success(request, f"El usuario '{usuario.username}' fue reactivado.")
     return redirect("usuarios_inactivos")
-
 
 
 @user_passes_test(es_admin)
@@ -79,66 +74,49 @@ def crear_usuario(request):
         username = request.POST["username"]
         email = request.POST["email"]
         password = request.POST["password"]
-
         User.objects.create_user(username=username, email=email, password=password)
         messages.success(request, "Usuario creado correctamente")
         return redirect("panel_usuarios")
-
     return render(request, "users/crear_usuario.html")
 
 
 @user_passes_test(es_admin)
 def editar_usuario(request, user_id):
     usuario = User.objects.get(id=user_id)
-
     if request.method == "POST":
         usuario.username = request.POST["username"]
         usuario.email = request.POST["email"]
-
         if request.POST["password"]:
             usuario.set_password(request.POST["password"])
-
         usuario.save()
         messages.success(request, "Usuario actualizado")
         return redirect("panel_usuarios")
-
     return render(request, "users/editar_usuario.html", {"usuario": usuario})
 
 
 @user_passes_test(es_admin)
 def eliminar_usuario(request, user_id):
     usuario = get_object_or_404(User, id=user_id)
-
     if usuario == request.user:
         messages.error(request, "No puedes desactivar tu propia cuenta.")
         return redirect("panel_usuarios")
-
-    # 🔥 BORRADO LÓGICO
     usuario.is_active = False
     usuario.is_staff = False
     usuario.is_superuser = False
     usuario.save()
-
     messages.success(request, f"El usuario '{usuario.username}' fue desactivado correctamente.")
     return redirect("panel_usuarios")
 
 
 # ====================================================================
-# 🚀 *** NUEVO *** CAMBIAR ROL DE USUARIO
+# 🚀 CAMBIAR ROL DE USUARIO
 # ====================================================================
 @user_passes_test(es_admin)
 def cambiar_rol_usuario(request, user_id, rol):
-    """
-    rol puede ser: 'superuser', 'staff', 'normal'
-    """
     usuario = get_object_or_404(User, id=user_id)
-
-    # Evitar que un admin se elimine a sí mismo accidentalmente
     if usuario == request.user:
         messages.error(request, "No puedes cambiar tu propio rol.")
         return redirect("panel_usuarios")
-
-    # Aplicar cambios
     if rol == "superuser":
         usuario.is_superuser = True
         usuario.is_staff = True
@@ -151,16 +129,14 @@ def cambiar_rol_usuario(request, user_id, rol):
     else:
         messages.error(request, "Rol inválido.")
         return redirect("panel_usuarios")
-
     usuario.save()
     messages.success(request, f"El rol del usuario '{usuario.username}' fue actualizado a '{rol}'.")
     return redirect("panel_usuarios")
 
 
 # ====================================================================
-# RESTO DE TU CÓDIGO (NO TOCADO)
+# HOME
 # ====================================================================
-
 def home(request):
     return render(request, 'users/home.html')
 
@@ -193,7 +169,6 @@ def profile(request):
     if request.method == 'POST':
         user_form = FormularioActualizarUsuario(request.POST, instance=request.user)
         profile_form = FormularioActualizarPerfil(request.POST, request.FILES, instance=request.user.perfil)
-
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
@@ -238,252 +213,125 @@ class VistaCambiarContrasena(SuccessMessageMixin, PasswordChangeView):
     success_message = "Contraseña cambiada"
 
 
-
 # ====================================================================
-# 📄 DETALLE DE CONSULTA — LISTA DE EVENTOS
+# 🔍 CONSULTAR GUÍA — con ScrapingBee
 # ====================================================================
-@user_passes_test(es_admin)
-def detalle_consulta(request, consulta_id):
-    eventos = HistorialGuia.objects.filter(
-        consulta_id=consulta_id,
-        activo=True
-    ).order_by("id")
-
-
-    if not eventos.exists():
-        messages.error(request, "La consulta no existe o no tiene eventos activos.")
-        return redirect("panel_guias")
-
-    numero_guia = eventos.first().numero_guia
-
-    return render(request, "users/guias_detalle.html", {
-        "eventos": eventos,
-        "consulta_id": consulta_id,
-        "numero_guia": numero_guia,
-    })
-
-
-    
-
-# ====================================================================
-# ➕ CREAR EVENTO DE UNA GUIA
-# ====================================================================
-@user_passes_test(es_admin)
-@user_passes_test(es_admin)
-def crear_evento(request, consulta_id):
-
-    eventos = HistorialGuia.objects.filter(consulta_id=consulta_id)
-    if not eventos.exists():
-        messages.error(request, "Consulta inexistente.")
-        return redirect("panel_guias")
-
-    numero_guia = eventos.first().numero_guia
-
-    if request.method == "POST":
-        fecha = request.POST.get("fecha")
-        hora = request.POST.get("hora")
-
-        # 🔹 ESTADO con soporte para "otro"
-        estado = request.POST.get("estado")
-        if estado == "otro":
-            estado = request.POST.get("estado_otro")
-
-        sucursal = request.POST.get("sucursal")
-
-        HistorialGuia.objects.create(
-            consulta_id=consulta_id,
-            usuario=eventos.first().usuario,
-            numero_guia=numero_guia,
-            fecha=fecha,
-            hora=hora,
-            estado=estado,
-            sucursal=sucursal,
-            fecha_consulta=datetime.now(),
-        )
-
-        messages.success(request, "Nuevo evento agregado.")
-        return redirect("detalle_consulta", consulta_id=consulta_id)
-
-    return render(request, "users/guias_crear_evento.html", {
-        "consulta_id": consulta_id,
-        "numero_guia": numero_guia,
-    })
-
-
-
-
-# ====================================================================
-# ✏ EDITAR EVENTO
-# ====================================================================
-@user_passes_test(es_admin)
-@user_passes_test(es_admin)
-def editar_evento(request, consulta_id, evento_id):
-
-    evento = get_object_or_404(HistorialGuia, id=evento_id)
-
-    if request.method == "POST":
-        evento.fecha = request.POST.get("fecha")
-        evento.hora = request.POST.get("hora")
-
-        # 🔹 manejar estado con opción "otro"
-        estado = request.POST.get("estado")
-        if estado == "otro":
-            estado = request.POST.get("estado_otro")
-
-        evento.estado = estado
-        evento.sucursal = request.POST.get("sucursal")
-        evento.save()
-
-        messages.success(request, "Evento actualizado.")
-        return redirect("detalle_consulta", consulta_id=consulta_id)
-
-
-    return render(request, "users/guias_editar_evento.html", {
-        "evento": evento,
-        "consulta_id": consulta_id,
-        "numero_guia": evento.numero_guia,
-    })
-
-
-
-
-
 @login_required
 def VistaConsultarGuia(request):
     resultados_consulta = None
     guia_consultada = None
 
-    URL_BASE_RASTREO = 'https://interrapidisimo.com/sigue-tu-envio'
-    SELECTOR_INPUT = '#inputGuide'
-    SELECTOR_BOTON_HISTORIAL = '#collapseButton'
-
     if request.method == 'POST':
         guia_consultada = request.POST.get('guia_a_consultar', '').strip()
 
         if guia_consultada:
-            page_content = None
-
             ultimo = HistorialGuia.objects.aggregate(models.Max('consulta_id')).get("consulta_id__max")
             nuevo_consulta_id = (ultimo or 0) + 1
 
             try:
-                with sync_playwright() as p:
-                    browser = p.chromium.launch(headless=True)
-                    page = browser.new_page()
-                    page.goto(URL_BASE_RASTREO, wait_until='domcontentloaded')
-                    page.wait_for_selector(SELECTOR_INPUT)
-                    page.fill(SELECTOR_INPUT, guia_consultada)
+                api_key = os.getenv('SCRAPINGBEE_API_KEY')
+                url_rastreo = f"https://interrapidisimo.com/sigue-tu-envio/?guia={guia_consultada}"
 
-                    with page.context.expect_page() as new_page_info:
-                        page.press(SELECTOR_INPUT, 'Enter')
+                response = req.get(
+                    "https://app.scrapingbee.com/api/v1/",
+                    params={
+                        "api_key": api_key,
+                        "url": url_rastreo,
+                        "render_js": "true",
+                        "wait": "3000",
+                        "wait_for": "#collapseExample",
+                        "js_scenario": '{"instructions":[{"click":"#collapseButton"},{"wait":2000}]}',
+                    },
+                    timeout=60,
+                )
 
-                    results_page = new_page_info.value
-                    results_page.wait_for_selector(SELECTOR_BOTON_HISTORIAL)
-                    results_page.evaluate(f"document.querySelector('{SELECTOR_BOTON_HISTORIAL}').click()")
-                    time.sleep(2)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, "html.parser")
+                    resultados_consulta = []
 
-                    page_content = results_page.content()
-                    browser.close()
+                    timeline = soup.find("div", id="collapseExample")
+
+                    if timeline:
+                        eventos = timeline.find_all("div", class_=lambda c: c and "content" in c)
+
+                        for e in eventos:
+                            descripcion_tag = e.find("p", class_=lambda c: c and "font-weight-600" in c)
+                            descripcion = descripcion_tag.text.strip() if descripcion_tag else "N/D"
+
+                            fecha = "N/D"
+                            ciudad = "N/D"
+
+                            fecha_div = e.find("div", class_=lambda c: c and "date-city" in c)
+                            if fecha_div:
+                                fecha_tag = fecha_div.find("p", string=lambda t: t and "Fecha" in t)
+                                if fecha_tag:
+                                    fecha = fecha_tag.text.replace("Fecha:", "").strip()
+                                ciudad_tag = fecha_div.find_all("p")[-1]
+                                if ciudad_tag and "Ciudad" in ciudad_tag.text:
+                                    ciudad = ciudad_tag.text.replace("Ciudad:", "").strip()
+
+                            resultados_consulta.append({
+                                "fecha": fecha,
+                                "hora": "N/D",
+                                "estado": descripcion,
+                                "sucursal": ciudad,
+                            })
+
+                    if resultados_consulta:
+                        for evento in resultados_consulta:
+                            HistorialGuia.objects.create(
+                                usuario=request.user,
+                                consulta_id=nuevo_consulta_id,
+                                numero_guia=guia_consultada,
+                                fecha=evento["fecha"],
+                                hora=evento["hora"],
+                                estado=evento["estado"],
+                                sucursal=evento["sucursal"],
+                                fecha_consulta=datetime.now()
+                            )
+                        messages.success(request, "Guía consultada correctamente")
+                    else:
+                        messages.warning(request, "No se encontraron eventos para esta guía.")
+                else:
+                    messages.error(request, f"Error al consultar la guía. Código: {response.status_code}")
 
             except Exception as e:
                 messages.error(request, f"Error: {e}")
-
-            if page_content:
-                soup = BeautifulSoup(page_content, "html.parser")
-                resultados_consulta = []
-
-                timeline = soup.find("div", id="collapseExample")
-
-                if timeline:
-                    eventos = timeline.find_all("div", class_=lambda c: c and "content" in c)
-
-                    for e in eventos:
-                        descripcion_tag = e.find("p", class_=lambda c: c and "font-weight-600" in c)
-                        descripcion = descripcion_tag.text.strip() if descripcion_tag else "N/D"
-
-                        fecha = "N/D"
-                        ciudad = "N/D"
-
-                        fecha_div = e.find("div", class_=lambda c: c and "date-city" in c)
-
-                        if fecha_div:
-                            fecha_tag = fecha_div.find("p", string=lambda t: t and "Fecha" in t)
-                            if fecha_tag:
-                                fecha = fecha_tag.text.replace("Fecha:", "").strip()
-
-                            ciudad_tag = fecha_div.find_all("p")[-1]
-                            if ciudad_tag and "Ciudad" in ciudad_tag.text:
-                                ciudad = ciudad_tag.text.replace("Ciudad:", "").strip()
-
-                        resultados_consulta.append({
-                            "fecha": fecha,
-                            "hora": "N/D",
-                            "estado": descripcion,
-                            "sucursal": ciudad,
-                        })
-
-                for evento in resultados_consulta:
-                    HistorialGuia.objects.create(
-                        usuario=request.user,
-                        consulta_id=nuevo_consulta_id,
-                        numero_guia=guia_consultada,
-                        fecha=evento["fecha"],
-                        hora=evento["hora"],
-                        estado=evento["estado"],
-                        sucursal=evento["sucursal"],
-                        fecha_consulta=datetime.now()
-                    )
-
-                messages.success(request, "Guía consultada correctamente")
 
     return render(request, "users/consultar_guia.html", {
         "resultados": resultados_consulta,
         "guia_consultada": guia_consultada,
     })
-# ====================================================================
-# 📦 CRUD DE HISTORIAL DE GUÍAS
-# ====================================================================
 
 
-@user_passes_test(es_admin)
+# ====================================================================
+# 📦 PANEL DE GUÍAS
+# ====================================================================
 @user_passes_test(es_admin)
 def panel_guias(request):
-    """
-    Lista de guías agrupadas por consulta_id,
-    pero SOLO los eventos activos deben contarse y mostrarse.
-    """
-
     consultas = (
         HistorialGuia.objects
-        .filter(activo=True)              # 👈 FILTRO CORRECTO
-        .values("consulta_id", "numero_guia", "usuario_id")  
+        .filter(activo=True)
+        .values("consulta_id", "numero_guia", "usuario_id")
         .annotate(total_eventos=models.Count("id"))
         .order_by("-consulta_id")
     )
-
-    return render(request, "users/guias_panel.html", {
-        "consultas": consultas
-    })
+    return render(request, "users/guias_panel.html", {"consultas": consultas})
 
 
-
-
-
+# ====================================================================
+# 📄 DETALLE DE CONSULTA
+# ====================================================================
 @user_passes_test(es_admin)
 def detalle_consulta(request, consulta_id):
-    """
-    Muestra solo los eventos ACTIVOS de una consulta.
-    """
     eventos = (
         HistorialGuia.objects
         .filter(consulta_id=consulta_id, activo=True)
         .order_by('id')
     )
-
     if not eventos.exists():
         messages.error(request, "No hay eventos activos para esta consulta.")
         return redirect("panel_guias")
-
     return render(request, "users/guias_detalle.html", {
         "consulta_id": consulta_id,
         "numero_guia": eventos.first().numero_guia,
@@ -491,53 +339,56 @@ def detalle_consulta(request, consulta_id):
     })
 
 
+# ====================================================================
+# ➕ CREAR EVENTO
+# ====================================================================
 @user_passes_test(es_admin)
 def crear_evento(request, consulta_id):
-    """
-    Crear manualmente un nuevo evento dentro de una consulta existente
-    """
     consulta = HistorialGuia.objects.filter(consulta_id=consulta_id).first()
-
     if not consulta:
         messages.error(request, "Consulta no encontrada.")
         return redirect("panel_guias")
 
     if request.method == "POST":
-        fecha = request.POST["fecha"]
-        hora = request.POST["hora"]
-        estado = request.POST["estado"]
-        sucursal = request.POST["sucursal"]
+        estado = request.POST.get("estado")
+        if estado == "otro":
+            estado = request.POST.get("estado_otro")
 
         HistorialGuia.objects.create(
             usuario=request.user,
             consulta_id=consulta_id,
             numero_guia=consulta.numero_guia,
-            fecha=fecha,
-            hora=hora,
+            fecha=request.POST.get("fecha"),
+            hora=request.POST.get("hora"),
             estado=estado,
-            sucursal=sucursal,
+            sucursal=request.POST.get("sucursal"),
             fecha_consulta=datetime.now()
         )
-
         messages.success(request, "Evento creado correctamente.")
         return redirect("detalle_consulta", consulta_id=consulta_id)
 
-    return render(request, "users/guias_crear_evento.html", {"consulta_id": consulta_id})
+    return render(request, "users/guias_crear_evento.html", {
+        "consulta_id": consulta_id,
+        "numero_guia": consulta.numero_guia,
+    })
 
 
-
+# ====================================================================
+# ✏ EDITAR EVENTO
+# ====================================================================
 @user_passes_test(es_admin)
 def editar_evento(request, consulta_id, evento_id):
-    """
-    Editar un evento existente
-    """
     evento = get_object_or_404(HistorialGuia, id=evento_id)
 
     if request.method == "POST":
-        evento.fecha = request.POST["fecha"]
-        evento.hora = request.POST["hora"]
-        evento.estado = request.POST["estado"]
-        evento.sucursal = request.POST["sucursal"]
+        estado = request.POST.get("estado")
+        if estado == "otro":
+            estado = request.POST.get("estado_otro")
+
+        evento.fecha = request.POST.get("fecha")
+        evento.hora = request.POST.get("hora")
+        evento.estado = estado
+        evento.sucursal = request.POST.get("sucursal")
         evento.save()
 
         messages.success(request, "Evento actualizado correctamente.")
@@ -550,30 +401,29 @@ def editar_evento(request, consulta_id, evento_id):
     })
 
 
-
+# ====================================================================
+# 🗑 ELIMINAR EVENTO (borrado lógico)
+# ====================================================================
 @user_passes_test(es_admin)
 def eliminar_evento(request, consulta_id, evento_id):
-    """
-    Borrado lógico de un evento del historial
-    """
     evento = get_object_or_404(HistorialGuia, id=evento_id)
     evento.activo = False
     evento.save()
-
     messages.success(request, "Evento marcado como eliminado.")
     return redirect("detalle_consulta", consulta_id=consulta_id)
 
+
+# ====================================================================
+# 🔄 INACTIVOS Y RESTAURAR
+# ====================================================================
 @user_passes_test(es_admin)
 def detalle_consulta_inactivos(request, consulta_id):
-    eventos = HistorialGuia.objects.filter(
-        consulta_id=consulta_id,
-        activo=False
-    ).order_by("id")
-
+    eventos = HistorialGuia.objects.filter(consulta_id=consulta_id, activo=False).order_by("id")
     return render(request, "users/guias_detalle_inactivos.html", {
         "eventos": eventos,
         "consulta_id": consulta_id
     })
+
 
 @user_passes_test(es_admin)
 def restaurar_evento(request, consulta_id, evento_id):
@@ -584,18 +434,11 @@ def restaurar_evento(request, consulta_id, evento_id):
     return redirect("detalle_consulta_inactivos", consulta_id=consulta_id)
 
 
-
-    
+# ====================================================================
+# 📊 EXPORTAR EXCEL
+# ====================================================================
 @user_passes_test(es_admin)
 def exportar_guias_excel(request):
-    """
-    Genera un Excel con TODAS las guías activas y:
-      - Devuelve el archivo para descarga
-      - Lo envía por correo al usuario logueado
-    """
-    print("🔍 Entrando a exportar_guias_excel")
-
-    # Solo activos
     registros = HistorialGuia.objects.filter(activo=True).order_by(
         "numero_guia", "consulta_id", "fecha_consulta"
     )
@@ -604,20 +447,14 @@ def exportar_guias_excel(request):
         messages.warning(request, "No hay registros activos para exportar.")
         return redirect("panel_guias")
 
-    # Crear libro Excel
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Guías"
 
     columnas = [
-        "ID Consulta",
-        "Número de guía",
-        "Usuario",
-        "Fecha evento",
-        "Hora",
-        "Estado",
-        "Sucursal / ciudad",
-        "Fecha de consulta",
+        "ID Consulta", "Número de guía", "Usuario",
+        "Fecha evento", "Hora", "Estado",
+        "Sucursal / ciudad", "Fecha de consulta",
     ]
 
     for col_num, titulo in enumerate(columnas, 1):
@@ -632,28 +469,15 @@ def exportar_guias_excel(request):
         ws.cell(row=fila, column=5, value=r.hora)
         ws.cell(row=fila, column=6, value=r.estado)
         ws.cell(row=fila, column=7, value=r.sucursal)
-        ws.cell(
-            row=fila,
-            column=8,
-            value=r.fecha_consulta.strftime("%Y-%m-%d %H:%M:%S")
-            if r.fecha_consulta else ""
-        )
+        ws.cell(row=fila, column=8, value=r.fecha_consulta.strftime("%Y-%m-%d %H:%M:%S") if r.fecha_consulta else "")
         fila += 1
 
-    # ===== Guardar en memoria =====
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
-    excel_bytes = buffer.getvalue()   # 💥 AQUÍ SE CREA LA VARIABLE CORRECTAMENTE
-
-    print("📄 Excel generado correctamente.")
-
-    # ===== Enviar por correo =====
-    print("🔍 Usuario logueado:", request.user.username)
-    print("🔍 Email del usuario:", request.user.email)
+    excel_bytes = buffer.getvalue()
 
     if request.user.email:
-        print(f"📨 Intentando enviar correo a: {request.user.email}")
         try:
             mensaje = EmailMessage(
                 subject="Reporte de guías generado",
@@ -667,16 +491,12 @@ def exportar_guias_excel(request):
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
             mensaje.send()
-            print("✅ CORREO ENVIADO EXITOSAMENTE")
             messages.success(request, f"Reporte enviado a {request.user.email}")
         except Exception as e:
-            print("❌ ERROR al enviar correo:", e)
             messages.error(request, f"Error enviando correo: {e}")
     else:
-        print("⚠ Usuario sin email.")
         messages.warning(request, "El usuario no tiene correo configurado.")
 
-    # ===== Respuesta al navegador =====
     response = HttpResponse(
         excel_bytes,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
