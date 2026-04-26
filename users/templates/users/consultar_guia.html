@@ -1,0 +1,80 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block title %} Consultar Guía {% endblock title%}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0 rounded-lg p-4">
+                <h2 class="text-center mb-4">
+                    <i class="fas fa-truck-loading me-2 text-success"></i>
+                    Consulta de Guía de Envío
+                </h2>
+                <p class="text-muted text-center mb-4">
+                    Introduce el número de guía (tracking number) para verificar el estado de tu envío.
+                </p>
+                
+                {# Muestra mensajes de Django (éxito, error, warning) generados en views.py #}
+                {# Los mensajes ya son manejados por base.html, pero se añade un espacio por si acaso. #}
+
+                <div class="p-4 border rounded mb-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="guiaInput" class="form-label fw-bold">Número de Guía:</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="guiaInput" 
+                                   name="guia_a_consultar" 
+                                   placeholder="Ej: 1234567890" 
+                                   {# Mantiene el valor si hubo una consulta previa #}
+                                   value="{{ guia_consultada|default_if_none:'' }}" 
+                                   required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">
+                            <i class="fas fa-search"></i> Consultar
+                        </button>
+                    </form>
+                </div>
+
+                {% if resultados %}
+                <h4 class="mb-3">Estado de Guía: **{{ guia_consultada }}**</h4>
+                <div class="table-responsive shadow-sm border rounded">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Estado</th>
+                                <th>Sucursal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for evento in resultados %}
+                            <tr {% if forloop.first %}class="table-info fw-bold"{% endif %}>
+                                <td>{{ evento.fecha }}</td>
+                                <td>{{ evento.hora }}</td>
+                                <td>{{ evento.estado }}</td>
+                                <td>{{ evento.sucursal }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif guia_consultada and resultados is not None and not resultados %}
+                <div class="alert alert-info text-center mt-4" role="alert">
+                    <i class="fas fa-info-circle"></i> No hay eventos de rastreo disponibles para la guía **{{ guia_consultada }}** o el número es incorrecto.
+                </div>
+                {% endif %}
+                <div class="mt-4 text-center">
+                    <a href="{% url 'users-profile' %}" class="text-decoration-none small">
+                        <i class="fas fa-arrow-left"></i> Volver a mi perfil
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

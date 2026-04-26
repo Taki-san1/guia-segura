@@ -6,21 +6,25 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from django.contrib.auth import views as auth_views
-from users.views import CustomLoginView, ResetPasswordView, ChangePasswordView
+# ⬅️ IMPORTACIONES ACTUALIZADAS
+from users.views import VistaAccesoPersonalizada, VistaRestablecerContrasena, VistaCambiarContrasena 
 
-from users.forms import LoginForm
+# ⬅️ IMPORTACIÓN ACTUALIZADA
+from users.forms import FormularioAcceso 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('', include('users.urls')),
 
-    path('login/', CustomLoginView.as_view(redirect_authenticated_user=True, template_name='users/login.html',
-                                           authentication_form=LoginForm), name='login'),
+    # ⬅️ USO DE VISTA Y FORMULARIO ACTUALIZADOS
+    path('login/', VistaAccesoPersonalizada.as_view(redirect_authenticated_user=True, template_name='users/login.html',
+                                           authentication_form=FormularioAcceso), name='login'),
 
     path('logout/', auth_views.LogoutView.as_view(template_name='users/logout.html'), name='logout'),
 
-    path('password-reset/', ResetPasswordView.as_view(), name='password_reset'),
+    # ⬅️ USO DE VISTA ACTUALIZADA
+    path('password-reset/', VistaRestablecerContrasena.as_view(), name='password_reset'),
 
     path('password-reset-confirm/<uidb64>/<token>/',
          auth_views.PasswordResetConfirmView.as_view(template_name='users/password_reset_confirm.html'),
@@ -30,7 +34,8 @@ urlpatterns = [
          auth_views.PasswordResetCompleteView.as_view(template_name='users/password_reset_complete.html'),
          name='password_reset_complete'),
 
-    path('password-change/', ChangePasswordView.as_view(), name='password_change'),
+    # ⬅️ USO DE VISTA ACTUALIZADA
+    path('password-change/', VistaCambiarContrasena.as_view(), name='password_change'),
 
     re_path(r'^oauth/', include('social_django.urls', namespace='social')),
 

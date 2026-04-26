@@ -2,10 +2,10 @@ from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 
-from .models import Profile
+from .models import Perfil 
 
 
-class RegisterForm(UserCreationForm):
+class FormularioRegistro(UserCreationForm): 
     # fields we want to include and customize in our form
     first_name = forms.CharField(max_length=100,
                                  required=True,
@@ -46,7 +46,7 @@ class RegisterForm(UserCreationForm):
         fields = ['first_name', 'last_name', 'username', 'email', 'password1', 'password2']
 
 
-class LoginForm(AuthenticationForm):
+class FormularioAcceso(AuthenticationForm): 
     username = forms.CharField(max_length=100,
                                required=True,
                                widget=forms.TextInput(attrs={'placeholder': 'Username',
@@ -67,7 +67,7 @@ class LoginForm(AuthenticationForm):
         fields = ['username', 'password', 'remember_me']
 
 
-class UpdateUserForm(forms.ModelForm):
+class FormularioActualizarUsuario(forms.ModelForm): 
     username = forms.CharField(max_length=100,
                                required=True,
                                widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -79,10 +79,10 @@ class UpdateUserForm(forms.ModelForm):
         fields = ['username', 'email']
 
 
-class UpdateProfileForm(forms.ModelForm):
+class FormularioActualizarPerfil(forms.ModelForm): 
     avatar = forms.ImageField(widget=forms.FileInput(attrs={'class': 'form-control-file'}))
     bio = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5}))
 
     class Meta:
-        model = Profile
+        model = Perfil 
         fields = ['avatar', 'bio']

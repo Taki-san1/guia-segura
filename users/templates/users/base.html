@@ -1,62 +1,106 @@
-<!doctype html>
-<html lang="en">
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
 <head>
-    <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <title>{% block title %} GuiaSegura TresUnoUno {% endblock title %}</title>
 
-    <!--Font awesome icons -->
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet"> 
+    <link href="{% static 'css/main.css' %}" rel="stylesheet">
 
-    <title>{% block title %} {% endblock %} </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body>
-  <div class="container p-3 my-3">
-    <div class="row">
-      <div class="col-md-12">
-        <nav class="navbar navbar-expand-md navbar-light " style="background-color: #f0f5f5">
-          <a href="/" class="navbar-brand">Home</a>
-            <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarCollapse">
-                <div class="navbar-nav ml-auto">
-                  {% if user.is_authenticated %}
-                    <a href="{% url 'users-profile' %}" class="nav-item nav-link">Profile</a>
-                    <a href="{% url 'logout' %}" class="nav-item nav-link">Logout</a>
-                  {% else %}
-                    <a href="{% url 'login' %}" class="nav-item nav-link">Sign in</a>
-                  {% endif %}
 
-                </div>
+<body class="d-flex flex-column min-vh-100">
+
+    {# Ocultamos navbar en home ('/') y en login ('/login') #}
+    {% with current_path=request.path|slice:":-1" %}
+    {% if current_path != '' and current_path != '/login' %}
+
+    <nav class="navbar navbar-expand-md navbar-light bg-white border-bottom shadow-sm">
+        <div class="container">
+
+            <a href="{% url 'users-home' %}" class="navbar-brand fw-bold fs-4" style="color: #4a90e2 !important;">
+                <i class="fas fa-shipping-fast"></i> GuiaSegura
+            </a>
+
+            <div class="ms-auto d-flex align-items-center gap-2">
+
+                {% if user.is_authenticated %}
+
+                    <span class="navbar-text d-none d-sm-inline text-dark me-2">
+                        Bienvenido, **{{ user.first_name.title|default:'Usuario' }}**
+                    </span>
+
+                    <a href="{% url 'users-profile' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user-circle"></i> Perfil
+                    </a>
+
+                    {# ⭐ BOTÓN DEL PANEL PERSONALIZADO ⭐ #}
+                    {% if user.is_superuser %}
+                    <a href="{% url 'panel_usuarios' %}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-users-cog"></i> Administrar Usuarios
+                    </a>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                        </button>
+                    </form>
+
+                {% else %}
+
+                    <a href="{% url 'login' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-sign-in-alt"></i> Iniciar Sesión
+                    </a>
+                    <a href="{% url 'users-register' %}" class="btn btn-outline-secondary btn-sm">
+                        Registrarme
+                    </a>
+
+                {% endif %}
             </div>
-        </nav>
-        <!--Any flash messages pop up in any page because this is the base template-->
+
+        </div>
+    </nav>
+
+    {% endif %}
+
+    <main class="flex-grow-1">
+
+        {# Mensajes Django #}
         {% if messages %}
-          <div class="alert alert-dismissible" role="alert">
-            {% for message in messages %}
-              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
+            <div class="container mt-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
-        {% block content %}{% endblock %}
-      </div>
-    </div>
-  </div>
 
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        {% block content %}
+        {% endblock %}
 
-    <!-- A plugin for password show/hide  -->
+    </main>
+
+    {# Ocultar footer en Home y Login #}
+    {% if current_path != '' and current_path != '/login' %}
+    <footer class="footer mt-auto py-3 bg-light border-top">
+        <div class="container text-center">
+            <span class="text-muted">© 2025 GuiaSegura. Todos los derechos reservados.</span>
+        </div>
+    </footer>
+    {% endif %}
+    {% endwith %}
+
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="https://unpkg.com/bootstrap-show-password@1.2.1/dist/bootstrap-show-password.min.js"></script>
+    <script src="{% static 'js/script.js' %}"></script>
 
 </body>
 </html>

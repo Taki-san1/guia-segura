@@ -1,0 +1,42 @@
+{% extends "users/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="fw-bold mb-4 text-warning">
+        <i class="fas fa-trash-restore"></i> Eventos Inactivos — Guía {{ numero_guia }}
+    </h2>
+
+    <table class="table table-hover">
+        <thead class="table-warning">
+            <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Estado</th>
+                <th>Sucursal</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in eventos %}
+            <tr>
+                <td>{{ e.fecha }}</td>
+                <td>{{ e.hora }}</td>
+                <td>{{ e.estado }}</td>
+                <td>{{ e.sucursal }}</td>
+                <td>
+                    <a href="{% url 'restaurar_evento' consulta_id e.id %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-undo"></i> Restaurar
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'detalle_consulta' consulta_id %}" class="btn btn-secondary mt-3">
+        <i class="fas fa-arrow-left"></i> Volver
+    </a>
+
+</div>
+{% endblock %}

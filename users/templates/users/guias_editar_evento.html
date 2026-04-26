@@ -1,0 +1,194 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <h2 class="fw-bold mb-4">
+        <i class="fas fa-edit"></i> Editar Evento — Guía {{ numero_guia }}
+    </h2>
+
+    <p><strong>ID Consulta:</strong> {{ consulta_id }}</p>
+
+    <form method="POST" class="shadow p-4 rounded bg-white mt-4">
+        {% csrf_token %}
+
+        <!-- Fecha -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Fecha:</label>
+            <input type="date"
+                   name="fecha"
+                   class="form-control"
+                   value="{{ evento.fecha }}"
+                   required>
+        </div>
+
+        <!-- Hora -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Hora:</label>
+            <input type="time"
+                   name="hora"
+                   class="form-control"
+                   value="{{ evento.hora }}"
+                   required>
+        </div>
+
+        <!-- Estado -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Estado:</label>
+
+            <select name="estado" id="estadoSelect" class="form-select" required>
+                <option value="">Seleccione un estado...</option>
+
+                <option value="Recibimos tu envío" {% if evento.estado == "Recibimos tu envío" %}selected{% endif %}>Recibimos tu envío</option>
+
+                <option value="En Centro Logístico Origen" {% if evento.estado == "En Centro Logístico Origen" %}selected{% endif %}>En Centro Logístico Origen</option>
+
+                <option value="Viajando a tu destino" {% if evento.estado == "Viajando a tu destino" %}selected{% endif %}>Viajando a tu destino</option>
+
+                <option value="En Centro Logístico de Tránsito" {% if evento.estado == "En Centro Logístico de Tránsito" %}selected{% endif %}>En Centro Logístico de Tránsito</option>
+
+                <option value="En Centro Logístico Destino" {% if evento.estado == "En Centro Logístico Destino" %}selected{% endif %}>En Centro Logístico Destino</option>
+
+                <option value="Ya puedes recoger tu envío" {% if evento.estado == "Ya puedes recoger tu envío" %}selected{% endif %}>Ya puedes recoger tu envío</option>
+
+                <option value="Tu envío fue entregado" {% if evento.estado == "Tu envío fue entregado" %}selected{% endif %}>Tu envío fue entregado</option>
+
+                <option value="Se retrasó el envío" {% if evento.estado == "Se retrasó el envío" %}selected{% endif %}>Se retrasó el envío</option>
+
+                <!-- Opción otro -->
+                <option value="otro">Otro (escribir manual)</option>
+            </select>
+
+            <!-- Campo SOLO visible si se elige "otro" -->
+            <input type="text"
+                   id="estadoOtro"
+                   name="estado_otro"
+                   class="form-control mt-2"
+                   placeholder="Escriba el estado"
+                   style="display:none;">
+        </div>
+
+        <!-- Sucursal -->
+        <!-- Sucursal / Ciudad -->
+        <div class="mb-3">
+            <label class="form-label fw-bold">Sucursal / Ciudad:</label>
+
+            <!-- SELECT DEPARTAMENTO -->
+            <select id="selectDepartamento" class="form-select" required>
+                <option value="">Seleccione un Departamento...</option>
+            </select>
+
+            <!-- SELECT CIUDAD -->
+            <select id="selectCiudad" class="form-select mt-2" required>
+                <option value="">Seleccione primero un Departamento...</option>
+            </select>
+
+            <!-- País fijo -->
+            <input type="text" class="form-control mt-2" value="COL" readonly>
+
+            <!-- Input real enviado al backend -->
+            <input type="hidden" name="sucursal" id="sucursalFinal">
+        </div>
+
+
+        <!-- Botón -->
+        <button class="btn btn-primary w-100 mt-3">
+            <i class="fas fa-save"></i> Guardar Cambios
+        </button>
+    </form>
+
+    <a href="{% url 'detalle_consulta' consulta_id %}" class="btn btn-secondary mt-3">
+        <i class="fas fa-arrow-left"></i> Volver al Detalle
+    </a>
+</div>
+
+<!-- Script para mostrar input "otro" -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const select = document.getElementById("estadoSelect");
+    const inputOtro = document.getElementById("estadoOtro");
+
+    function actualizar() {
+        if (select.value === "otro") {
+            inputOtro.style.display = "block";
+        } else {
+            inputOtro.style.display = "none";
+            inputOtro.value = "";
+        }
+    }
+
+    actualizar();  // ejecutar al cargar
+    select.addEventListener("change", actualizar);
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const ciudadesPorDepartamento = {
+        "ANTIOQUIA": ["Medellín", "Envigado", "Bello", "Itagüí"],
+        "ATLÁNTICO": ["Barranquilla", "Soledad", "Malambo"],
+        "BOLÍVAR": ["Cartagena", "Magangué", "Turbaco"],
+        "BOYACÁ": ["Tunja", "Duitama", "Sogamoso"],
+        "CALDAS": ["Manizales", "Chinchiná"],
+        "CAUCA": ["Popayán", "Santander de Quilichao"],
+        "CESAR": ["Valledupar"],
+        "CÓRDOBA": ["Montería", "Lorica"],
+        "CUNDINAMARCA": ["Bogotá", "Soacha", "Zipaquirá", "Facatativá"],
+        "HUILA": ["Neiva", "Pitalito"],
+        "LA GUAJIRA": ["Riohacha", "Maicao"],
+        "MAGDALENA": ["Santa Marta"],
+        "META": ["Villavicencio"],
+        "NARIÑO": ["Pasto", "Ipiales"],
+        "NORTE DE SANTANDER": ["Cúcuta", "Ocaña"],
+        "QUINDÍO": ["Armenia"],
+        "RISARALDA": ["Pereira", "Dosquebradas"],
+        "SANTANDER": ["Bucaramanga", "Floridablanca", "Girón"],
+        "SUCRE": ["Sincelejo"],
+        "TOLIMA": ["Ibagué", "Espinal"],
+        "VALLE DEL CAUCA": ["Cali", "Palmira", "Buga", "Tuluá"]
+    };
+
+    const selectDepartamento = document.getElementById("selectDepartamento");
+    const selectCiudad = document.getElementById("selectCiudad");
+    const sucursalFinal = document.getElementById("sucursalFinal");
+
+    // Llenar departamentos
+    Object.keys(ciudadesPorDepartamento).forEach(dep => {
+        let opt = document.createElement("option");
+        opt.value = dep;
+        opt.textContent = dep;
+        selectDepartamento.appendChild(opt);
+    });
+
+    // Cuando cambia el departamento
+    selectDepartamento.addEventListener("change", function () {
+        selectCiudad.innerHTML = '<option value="">Seleccione una ciudad...</option>';
+        let depto = this.value;
+
+        if (ciudadesPorDepartamento[depto]) {
+            ciudadesPorDepartamento[depto].forEach(ciudad => {
+                let opt = document.createElement("option");
+                opt.value = ciudad.toUpperCase();
+                opt.textContent = ciudad;
+                selectCiudad.appendChild(opt);
+            });
+        }
+
+        actualizarSucursal();
+    });
+
+    // Cuando cambia la ciudad
+    selectCiudad.addEventListener("change", actualizarSucursal);
+
+    function actualizarSucursal() {
+        let d = selectDepartamento.value;
+        let c = selectCiudad.value;
+        if (d && c) {
+            sucursalFinal.value = `${c}/${d}/COL`;
+        }
+    }
+});
+</script>
+
+{% endblock %}

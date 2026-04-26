@@ -1,44 +1,77 @@
 {% extends "users/base.html" %}
-{% block title %}Profile Page{% endblock title %}
+{% block title %}Página de Perfil{% endblock title %}
 {% block content %}
-    <div class="row my-3 p-3">
-        <img class="rounded-circle account-img" src="{{ user.profile.avatar.url }} " style="cursor: pointer;"/>
-    </div>
-    {% if user_form.errors %}
-        <div class="alert alert-danger alert-dismissible" role="alert">
-            <div id="form_errors">
-                {% for key, value in user_form.errors.items %}
-                    <strong>{{ value }}</strong>
-                {% endfor %}
-            </div>
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    {% endif %}
-    <div class="form-content">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="form-row">
-                <div class="col-md-5">
-                    <div class="form-group">
-                        <label class="small mb-1">Username:</label>
+    <div class="container my-3 p-3">
+        <div class="row justify-content-center">
+            {# Contenedor principal para centrar el contenido (ancho limitado a 5/6 columnas) #}
+            <div class="col-lg-6 col-md-8"> 
+                
+                {# 1. IMAGEN DE PERFIL (Centrada y con estilo fijo) #}
+                <div class="text-center mb-4">
+                    <img class="rounded-circle account-img" 
+                         src="{{ user.perfil.avatar.url }} " 
+                         style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;"
+                         alt="Avatar del usuario"/>
+                </div>
+
+                {# Mensajes de error (Traducción y estilo Bootstrap 5) #}
+                {% if user_form.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <div id="form_errors">
+                            {% for key, value in user_form.errors.items %}
+                                <strong>{{ value }}</strong>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endif %}
+
+                {# 2. FORMULARIO #}
+                <div class="border p-4 mb-4">
+                    <h2 class="text-center">Información de la Cuenta</h2>
+                    <hr>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label class="small mb-1" for="{{ user_form.username.id_for_label }}">Nombre de Usuario:</label>
                             {{ user_form.username }}
-                        <label class="small mb-1">Email:</label>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="small mb-1" for="{{ user_form.email.id_for_label }}">Correo Electrónico:</label>
                             {{ user_form.email }}
-                    </div>
-                    <div class="form-group">
-                        <a href="{% url 'password_change' %}">Change Password</a>
-                        <hr>
-                        <label class="small mb-1">Change Avatar:</label>
-                        {{ profile_form.avatar }}
-                    </div>
-                    <label class="small mb-1">Bio:</label> {{ profile_form.bio }}
+                        </div>
+                        <div class="form-group mb-3">
+                            <a href="{% url 'password_change' %}">Cambiar Contraseña</a>
+                            <hr>
+                        </div>
+                        
+                        {# Formulario de Perfil #}
+                        <div class="form-group mb-3">
+                            <label class="small mb-1" for="{{ profile_form.avatar.id_for_label }}">Cambiar Avatar:</label>
+                            {{ profile_form.avatar }}
+                        </div>
+                        
+                        <div class="form-group mb-4">
+                            <label class="small mb-1" for="{{ profile_form.bio.id_for_label }}">Biografía:</label> 
+                            {{ profile_form.bio }}
+                        </div>
+                        
+                        
+                        {# 🚨 NUEVO BOTÓN PARA ADMINSTRAR USUARIOS 🚨 #}
+                        <div class="form-group mb-4 mt-5">
+                            <a href="{% url 'users-list' %}" class="btn btn-warning btn-lg w-100">
+                                <i class="fas fa-users"></i> Administrar Usuarios Registrados
+                            </a>
+                        </div>
+                        
+                        {# 3. BOTONES (Centrados, con espacio vertical) #}
+                        <div class="d-grid gap-2 d-md-flex justify-content-center mt-4">
+                            <button type="submit" class="btn btn-dark btn-lg">Guardar Cambios</button>
+                            <button type="reset" class="btn btn-dark btn-lg">Restablecer</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            <br><br>
-            <button type="submit" class="btn btn-dark btn-lg">Save Changes</button>
-            <button type="reset" class="btn btn-dark btn-lg">Reset</button>
-        </form>
+        </div>
     </div>
 {% endblock content %}

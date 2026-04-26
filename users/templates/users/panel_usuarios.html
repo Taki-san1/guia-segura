@@ -1,0 +1,173 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold"><i class="fas fa-users-cog"></i> Administrar Usuarios</h2>
+
+        <div class="d-flex gap-2">
+
+            <a href="{% url 'usuarios_inactivos' %}" class="btn btn-outline-dark">
+                <i class="fas fa-user-slash"></i> Ver Usuarios Inactivos
+            </a>
+
+
+            <!-- ✔ NUEVO BOTÓN PANEL DE GUÍAS -->
+            <a href="{% url 'panel_guias' %}" class="btn btn-outline-primary">
+                <i class="fas fa-box-open"></i> Guías Guardadas
+            </a>
+
+            <!-- CREAR USUARIO -->
+            <a href="{% url 'crear_usuario' %}" class="btn btn-success">
+                <i class="fas fa-user-plus"></i> Crear Usuario
+            </a>
+        </div>
+    </div>
+
+    <!-- 🔍 BUSCADOR -->
+    <div class="input-group mb-3">
+        <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <input type="text" id="searchInput" class="form-control" placeholder="Buscar usuario...">
+    </div>
+
+    <!-- Filtros -->
+    <div class="mb-3">
+        <select id="filterRole" class="form-select w-auto d-inline-block">
+            <option value="">Todos los tipos</option>
+            <option value="superuser">Superusuarios</option>
+            <option value="staff">Staff</option>
+            <option value="normal">Usuarios normales</option>
+        </select>
+    </div>
+
+    <!-- 📋 TABLA -->
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle" id="usersTable">
+            <thead class="table-primary">
+                <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th class="text-center">Roles</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in usuarios %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.email }}</td>
+
+                    <!-- Tipo actual -->
+                    <td>
+                        {% if u.is_superuser %}
+                            <span class="badge bg-danger">Superusuario</span>
+                        {% elif u.is_staff %}
+                            <span class="badge bg-warning text-dark">Staff</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Normal</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Botones de rol -->
+                    <td class="text-center">
+                        <a href="{% url 'cambiar_rol_usuario' u.id 'superuser' %}"
+                           class="btn btn-sm btn-danger mb-1"
+                           onclick="return confirm('¿Convertir en SUPERUSUARIO?')">
+                            <i class="fas fa-crown"></i>
+                        </a>
+
+                        <a href="{% url 'cambiar_rol_usuario' u.id 'staff' %}"
+                           class="btn btn-sm btn-warning text-dark mb-1"
+                           onclick="return confirm('¿Convertir en STAFF?')">
+                            <i class="fas fa-user-shield"></i>
+                        </a>
+
+                        <a href="{% url 'cambiar_rol_usuario' u.id 'normal' %}"
+                           class="btn btn-sm btn-secondary mb-1"
+                           onclick="return confirm('¿Convertir en USUARIO NORMAL?')">
+                            <i class="fas fa-user"></i>
+                        </a>
+                    </td>
+
+                    <!-- Editar / eliminar -->
+                    <td class="text-center">
+                        <a href="{% url 'editar_usuario' u.id %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'eliminar_usuario' u.id %}" 
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('¿Seguro que deseas eliminar este usuario?');">
+                            <i class="fas fa-trash-alt"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    <div class="d-flex justify-content-center mt-3">
+        <button class="btn btn-outline-primary me-2" onclick="changePage(-1)">Anterior</button>
+        <button class="btn btn-outline-primary" onclick="changePage(1)">Siguiente</button>
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+    const searchInput = document.getElementById("searchInput");
+    const filterRole = document.getElementById("filterRole");
+    const rows = document.querySelectorAll("#usersTable tbody tr");
+
+    searchInput.addEventListener("keyup", filterTable);
+    filterRole.addEventListener("change", filterTable);
+
+    function filterTable() {
+        let q = searchInput.value.toLowerCase();
+        let role = filterRole.value;
+
+        rows.forEach(row => {
+            let username = row.children[1].innerText.toLowerCase();
+            let email = row.children[2].innerText.toLowerCase();
+            let badge = row.children[3].innerText.toLowerCase();
+
+            let matchesSearch = username.includes(q) || email.includes(q);
+            let matchesRole =
+                role === "" ||
+                (role === "superuser" && badge.includes("super")) ||
+                (role === "staff" && badge.includes("staff")) ||
+                (role === "normal" && badge.includes("normal"));
+
+            row.style.display = (matchesSearch && matchesRole) ? "" : "none";
+        });
+    }
+
+    // PAGINACIÓN
+    let currentPage = 0;
+    const rowsPerPage = 8;
+
+    function changePage(direction) {
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage);
+
+        currentPage += direction;
+        if (currentPage < 0) currentPage = 0;
+        if (currentPage >= totalPages) currentPage = totalPages - 1;
+
+        rows.forEach((row, idx) => {
+            row.style.display =
+                idx >= currentPage * rowsPerPage && idx < (currentPage + 1) * rowsPerPage
+                ? ""
+                : "none";
+        });
+    }
+
+    changePage(0);
+</script>
+
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "users/base.html" %}
+{% block title %}Profile Page{% endblock title %}
+{% block content %}
+<div class="container mt-4">
+    {# Se centra el formulario y se limita el ancho en el escritorio para la organización #}
+    <div class="row justify-content-center"> 
+        <div class="col-md-8"> 
+
+            {# CAMBIO: Se ajusta la imagen de perfil para que tenga un tamaño fijo y se centra #}
+            <div class="row my-3 p-3 text-center"> 
+                <img class="rounded-circle account-img mx-auto" 
+                    src="{{ user.perfil.avatar.url }} " 
+                    style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;"
+                    alt="Avatar del usuario"/>
+            </div>
+            
+            <div class="row my-3 p-3 text-center">
+                <a href="{% url 'track-guide' %}" class="btn btn-success btn-lg w-75 mx-auto shadow-sm">
+                    <i class="fas fa-search"></i> Consultar Número de Guía
+                </a>
+            </div>
+            {% if user_form.errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div id="form_errors">
+                        {% for key, value in user_form.errors.items %}
+                            <strong>{{ value }}</strong>
+                        {% endfor %}
+                    </div>
+                    {# NOTA: Usé 'data-bs-dismiss' (Bootstrap 5). Si no funciona, por favor, vuelve a usar 'data-dismiss' #}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endif %}
+
+            <div class="card p-4 shadow-sm bg-white border-0">
+                <h3 class="card-title text-center fw-bold text-primary mb-3">{{ user.username | upper }}</h3>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="border p-4 rounded bg-light">
+                        <div class="form-group mb-3">
+                            <label class="small mb-1">Username:</label>
+                            {{ user_form.username }}
+                            <label class="small mb-1 mt-3">Email:</label>
+                            {{ user_form.email }}
+                        </div>
+                        <div class="form-group mt-4">
+                            <a href="{% url 'password_change' %}">Change Password</a>
+                            <hr>
+                            <label class="small mb-1">Change Avatar:</label>
+                            {{ profile_form.avatar }}
+                        </div>
+                        <label class="small mb-1 mt-3">Bio:</label> {{ profile_form.bio }}
+                    </div>
+                    <br>
+                    
+                    {# Mantenemos y reorganizamos los botones sin modificar su texto #}
+                    <div class="row justify-content-center mt-4">
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-dark btn-lg">Save Changes</button>
+                        </div>
+                        <div class="col-auto">
+                            <button type="reset" class="btn btn-dark btn-lg">Reset</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock content %}

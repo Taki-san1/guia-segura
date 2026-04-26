@@ -1,0 +1,48 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="fw-bold mb-4">
+        <i class="fas fa-box-open"></i> Consultas Guardadas
+    </h2>
+
+    {% if consultas %}
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th>ID Consulta</th>
+                    <th>Número de Guía</th>
+                    <th>Usuario</th>
+                    <th>Total Eventos</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {% for c in consultas %}
+                <tr>
+                    <td>{{ c.consulta_id }}</td>
+                    <td>{{ c.numero_guia }}</td>
+                    <td>{{ c.usuario }}</td>
+                    <td>{{ c.total_eventos }}</td>
+
+                    <td class="text-center">
+                        <a href="{% url 'detalle_consulta' c.consulta_id %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-eye"></i> Ver detalles
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+    {% else %}
+        <div class="alert alert-info">No hay consultas guardadas aún.</div>
+    {% endif %}
+</div>
+{% endblock %}

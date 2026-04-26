@@ -1,0 +1,79 @@
+{% extends "users/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">
+            <i class="fas fa-list-ul"></i>
+            Detalle de Consulta — Guía {{ numero_guia }}
+        </h2>
+
+        <a href="{% url 'detalle_consulta_inactivos' consulta_id %}" class="btn btn-warning mb-3">
+            <i class="fas fa-history"></i> Ver eventos inactivos
+        </a>
+
+
+        <!-- Botón para crear nuevo evento -->
+        <a href="{% url 'crear_evento' consulta_id %}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Agregar Evento
+        </a>
+    </div>
+
+    <p><strong>ID de Consulta:</strong> {{ consulta_id }}</p>
+    <p><strong>Número de Guía:</strong> {{ numero_guia }}</p>
+
+    <hr>
+
+    {% if eventos %}
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Estado</th>
+                    <th>Sucursal</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for e in eventos %}
+                <tr>
+                    <td>{{ e.fecha }}</td>
+                    <td>{{ e.hora }}</td>
+                    <td>{{ e.estado }}</td>
+                    <td>{{ e.sucursal }}</td>
+
+                    <td class="text-center">
+                        <!-- Editar -->
+                        <a href="{% url 'editar_evento' consulta_id e.id %}"
+                           class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+
+                        <!-- Eliminar -->
+                        <a href="{% url 'eliminar_evento' consulta_id e.id %}"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('¿Eliminar este evento?');">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info">
+            No hay eventos registrados para esta guía.
+        </div>
+    {% endif %}
+
+    <a href="{% url 'panel_guias' %}" class="btn btn-secondary mt-3">
+        <i class="fas fa-arrow-left"></i> Volver a Consultas
+    </a>
+
+</div>
+{% endblock %}

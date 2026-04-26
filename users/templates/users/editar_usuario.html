@@ -1,0 +1,13 @@
+{% extends "users/base.html" %}
+{% block content %}
+<h2>Editar Usuario</h2>
+
+<form method="POST">
+    {% csrf_token %}
+    <input class="form-control" name="username" value="{{ usuario.username }}" required>
+    <input class="form-control mt-2" name="email" value="{{ usuario.email }}">
+    <input class="form-control mt-2" name="password" placeholder="Nueva contraseña (opcional)">
+    <button class="btn btn-primary mt-3">Guardar cambios</button>
+</form>
+
+{% endblock %}

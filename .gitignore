@@ -5,7 +5,20 @@ __pycache__
 db.sqlite3
 .DS_Store
 
-.env
+# Entorno virtual (NUNCA subir)
 venv/
+env/
+.venv/
 
+# Variables de entorno (NUNCA subir)
+.env
+
+# Archivos estáticos generados
+staticfiles/
+
+# Archivos de media subidos por usuarios
+media/profile_images/
+
+# IDE
 .idea/
+.vscode/
