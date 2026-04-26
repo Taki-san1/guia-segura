@@ -238,11 +238,10 @@ def VistaConsultarGuia(request):
                         "api_key": api_key,
                         "url": url_rastreo,
                         "render_js": "true",
-                        "wait": "3000",
-                        "wait_for": "#collapseExample",
-                        "js_scenario": '{"instructions":[{"click":"#collapseButton"},{"wait":2000}]}',
+                        "wait": "5000",
+                        "js_scenario": '{"instructions":[{"click":"#collapseButton"},{"wait":3000}]}',
                     },
-                    timeout=60,
+                    timeout=120,
                 )
 
                 if response.status_code == 200:
