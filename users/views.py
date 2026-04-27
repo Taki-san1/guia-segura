@@ -250,9 +250,7 @@ def VistaConsultarGuia(request):
                             "api_key": scrapingbee_key,
                             "url": "https://apicm.interrapidisimo.com/ConsultaGuiasSTE/api/v1/ResultadoConsulta/ConsultarGuias",
                             "render_js": "false",
-                            "forward_headers": "true",
-                            "premium_proxy": "true",
-                            "country_code": "co",
+                            "forward_headers_pure": "true",
                         },
                         headers={
                             "Content-Type": "application/json",
@@ -274,9 +272,7 @@ def VistaConsultarGuia(request):
                         "api_key": scrapingbee_key,
                         "url": url_tracking,
                         "render_js": "false",
-                        "forward_headers": "true",
-                        "premium_proxy": "true",
-                        "country_code": "co",
+                        "forward_headers_pure": "true",
                     },
                     headers={
                         "Content-Type": "application/json",
