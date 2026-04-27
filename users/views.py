@@ -8,13 +8,10 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.db import models
-import time
-import os
 import requests as req
-
-# Scraping
+import uuid
+import os
 from datetime import datetime
-from bs4 import BeautifulSoup
 
 # Modelos y Formularios
 from django.views.generic import ListView
@@ -214,7 +211,10 @@ class VistaCambiarContrasena(SuccessMessageMixin, PasswordChangeView):
 
 
 # ====================================================================
-# 🔍 CONSULTAR GUÍA — via servidor local con ngrok
+# 🔍 CONSULTAR GUÍA — via ScrapingBee (proxy con IP real)
+# ScrapingBee actúa como navegador real y puede llamar a la API de
+# Interrapidísimo sin ser bloqueado por la allowlist de IPs.
+# Configurar en Render: SCRAPINGBEE_API_KEY
 # ====================================================================
 @login_required
 def VistaConsultarGuia(request):
@@ -225,52 +225,121 @@ def VistaConsultarGuia(request):
         guia_consultada = request.POST.get('guia_a_consultar', '').strip()
 
         if guia_consultada:
-            ultimo = HistorialGuia.objects.aggregate(models.Max('consulta_id')).get("consulta_id__max")
-            nuevo_consulta_id = (ultimo or 0) + 1
+            scrapingbee_key = os.getenv('SCRAPINGBEE_API_KEY')
+
+            if not scrapingbee_key:
+                messages.error(request, "El servicio de consulta no está configurado. Contacta al administrador.")
+                return render(request, "users/consultar_guia.html", {
+                    "resultados": None,
+                    "guia_consultada": guia_consultada,
+                })
 
             try:
-                scraper_url = os.getenv('SCRAPER_URL')
-                scraper_secret = os.getenv('SCRAPER_SECRET')
+                id_consulta = str(uuid.uuid4())
 
-                if not scraper_url:
-                    messages.error(request, "El servidor de consultas no está configurado.")
-                    return render(request, "users/consultar_guia.html", {
-                        "resultados": None,
-                        "guia_consultada": guia_consultada,
-                    })
+                url_tracking = (
+                    "https://apicm.interrapidisimo.com/ServiciosTrackingSTE/api/v1/"
+                    f"EstadoTracking/ObtenerEstadoTracking?numeroGuia={guia_consultada}"
+                )
 
+                # Paso 1: Registrar consulta (si falla continuamos igual)
+                try:
+                    req.post(
+                        "https://app.scrapingbee.com/api/v1/",
+                        params={
+                            "api_key": scrapingbee_key,
+                            "url": "https://apicm.interrapidisimo.com/ConsultaGuiasSTE/api/v1/ResultadoConsulta/ConsultarGuias",
+                            "render_js": "false",
+                            "custom_headers": "true",
+                            "premium_proxy": "true",
+                            "country_code": "co",
+                        },
+                        headers={
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                            "Idaplicacion": "39",
+                            "Origin": "https://siguetuenvio.interrapidisimo.com",
+                            "Referer": "https://siguetuenvio.interrapidisimo.com/",
+                        },
+                        json={"idConsulta": id_consulta},
+                        timeout=20,
+                    )
+                except Exception:
+                    pass  # Paso 1 es opcional
+
+                # Paso 2: Obtener estado de tracking
                 response = req.get(
-                    f"{scraper_url}/scrape",
-                    params={"guia": guia_consultada},
-                    headers={"X-API-Secret": scraper_secret},
+                    "https://app.scrapingbee.com/api/v1/",
+                    params={
+                        "api_key": scrapingbee_key,
+                        "url": url_tracking,
+                        "render_js": "false",
+                        "custom_headers": "true",
+                        "premium_proxy": "true",
+                        "country_code": "co",
+                    },
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "Idaplicacion": "39",
+                        "Authorization": id_consulta,
+                        "Origin": "https://siguetuenvio.interrapidisimo.com",
+                        "Referer": "https://siguetuenvio.interrapidisimo.com/",
+                    },
                     timeout=60,
                 )
 
                 if response.status_code == 200:
                     data = response.json()
 
-                    if data.get("success") and data.get("eventos"):
-                        resultados_consulta = data["eventos"]
+                    # Soportar tanto camelCase como PascalCase en la respuesta
+                    exito = data.get("operacionExitosa") or data.get("OperacionExitosa")
+                    resultado = data.get("resultado") or data.get("Resultado")
 
-                        for evento in resultados_consulta:
-                            HistorialGuia.objects.create(
-                                usuario=request.user,
-                                consulta_id=nuevo_consulta_id,
-                                numero_guia=guia_consultada,
-                                fecha=evento["fecha"],
-                                hora=evento["hora"],
-                                estado=evento["estado"],
-                                sucursal=evento["sucursal"],
-                                fecha_consulta=datetime.now()
-                            )
-                        messages.success(request, "Guía consultada correctamente")
+                    if exito and resultado:
+                        tracking = resultado.get("tracking") or resultado.get("Tracking") or []
+                        ciudad_origen = resultado.get("ciudadBodegaOrigen") or resultado.get("CiudadBodegaOrigen") or "N/D"
+                        ciudad_destino = resultado.get("ciudadBodegaDestino") or resultado.get("CiudadBodegaDestino") or "N/D"
+
+                        eventos = []
+                        for item in tracking:
+                            fecha_completa = item.get("fechaEtapa") or item.get("FechaEtapa") or ""
+                            partes = fecha_completa.split(" ")
+                            eventos.append({
+                                "fecha": partes[0] if len(partes) > 0 else "N/D",
+                                "hora": partes[1] if len(partes) > 1 else "N/D",
+                                "estado": item.get("nombreEtapa") or item.get("NombreEtapa") or "N/D",
+                                "sucursal": f"{ciudad_origen} → {ciudad_destino}",
+                            })
+
+                        if eventos:
+                            ultimo = HistorialGuia.objects.aggregate(models.Max('consulta_id')).get("consulta_id__max")
+                            nuevo_consulta_id = (ultimo or 0) + 1
+
+                            for evento in eventos:
+                                HistorialGuia.objects.create(
+                                    usuario=request.user,
+                                    consulta_id=nuevo_consulta_id,
+                                    numero_guia=guia_consultada,
+                                    fecha=evento["fecha"],
+                                    hora=evento["hora"],
+                                    estado=evento["estado"],
+                                    sucursal=evento["sucursal"],
+                                    fecha_consulta=datetime.now()
+                                )
+
+                            resultados_consulta = eventos
+                            messages.success(request, "Guía consultada correctamente")
+                        else:
+                            messages.warning(request, "La guía existe pero aún no tiene eventos de rastreo.")
                     else:
-                        messages.warning(request, data.get("error", "No se encontraron eventos para esta guía."))
+                        mensaje = data.get("mensaje") or data.get("Mensaje") or "No se encontraron resultados."
+                        messages.warning(request, mensaje)
                 else:
                     messages.error(request, f"Error al consultar la guía. Código: {response.status_code}")
 
             except Exception as e:
-                messages.error(request, f"Error: {e}")
+                messages.error(request, f"Error inesperado: {e}")
 
     return render(request, "users/consultar_guia.html", {
         "resultados": resultados_consulta,

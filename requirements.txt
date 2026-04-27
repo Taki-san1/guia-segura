@@ -4,7 +4,6 @@ requests
 python-dotenv
 Pillow
 django-widget-tweaks
-beautifulsoup4
 openpyxl
 social-auth-app-django
 whitenoise
