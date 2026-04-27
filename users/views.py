@@ -214,7 +214,7 @@ class VistaCambiarContrasena(SuccessMessageMixin, PasswordChangeView):
 
 
 # ====================================================================
-# 🔍 CONSULTAR GUÍA — con ScrapingBee
+# 🔍 CONSULTAR GUÍA — via servidor local con ngrok
 # ====================================================================
 @login_required
 def VistaConsultarGuia(request):
@@ -229,53 +229,29 @@ def VistaConsultarGuia(request):
             nuevo_consulta_id = (ultimo or 0) + 1
 
             try:
-                api_key = os.getenv('SCRAPINGBEE_API_KEY')
-                url_rastreo = f"https://interrapidisimo.com/sigue-tu-envio/?guia={guia_consultada}"
+                scraper_url = os.getenv('SCRAPER_URL')
+                scraper_secret = os.getenv('SCRAPER_SECRET')
+
+                if not scraper_url:
+                    messages.error(request, "El servidor de consultas no está configurado.")
+                    return render(request, "users/consultar_guia.html", {
+                        "resultados": None,
+                        "guia_consultada": guia_consultada,
+                    })
 
                 response = req.get(
-                    "https://app.scrapingbee.com/api/v1/",
-                    params={
-                        "api_key": api_key,
-                        "url": url_rastreo,
-                        "render_js": "true",
-                        "wait": "8000",
-                    },
-                    timeout=120,
+                    f"{scraper_url}/scrape",
+                    params={"guia": guia_consultada},
+                    headers={"X-API-Secret": scraper_secret},
+                    timeout=60,
                 )
 
                 if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, "html.parser")
-                    resultados_consulta = []
+                    data = response.json()
 
-                    timeline = soup.find("div", id="collapseExample")
+                    if data.get("success") and data.get("eventos"):
+                        resultados_consulta = data["eventos"]
 
-                    if timeline:
-                        eventos = timeline.find_all("div", class_=lambda c: c and "content" in c)
-
-                        for e in eventos:
-                            descripcion_tag = e.find("p", class_=lambda c: c and "font-weight-600" in c)
-                            descripcion = descripcion_tag.text.strip() if descripcion_tag else "N/D"
-
-                            fecha = "N/D"
-                            ciudad = "N/D"
-
-                            fecha_div = e.find("div", class_=lambda c: c and "date-city" in c)
-                            if fecha_div:
-                                fecha_tag = fecha_div.find("p", string=lambda t: t and "Fecha" in t)
-                                if fecha_tag:
-                                    fecha = fecha_tag.text.replace("Fecha:", "").strip()
-                                ciudad_tag = fecha_div.find_all("p")[-1]
-                                if ciudad_tag and "Ciudad" in ciudad_tag.text:
-                                    ciudad = ciudad_tag.text.replace("Ciudad:", "").strip()
-
-                            resultados_consulta.append({
-                                "fecha": fecha,
-                                "hora": "N/D",
-                                "estado": descripcion,
-                                "sucursal": ciudad,
-                            })
-
-                    if resultados_consulta:
                         for evento in resultados_consulta:
                             HistorialGuia.objects.create(
                                 usuario=request.user,
@@ -289,7 +265,7 @@ def VistaConsultarGuia(request):
                             )
                         messages.success(request, "Guía consultada correctamente")
                     else:
-                        messages.warning(request, "No se encontraron eventos para esta guía.")
+                        messages.warning(request, data.get("error", "No se encontraron eventos para esta guía."))
                 else:
                     messages.error(request, f"Error al consultar la guía. Código: {response.status_code}")
 
