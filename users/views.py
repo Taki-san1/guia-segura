@@ -336,7 +336,7 @@ def VistaConsultarGuia(request):
                         mensaje = data.get("mensaje") or data.get("Mensaje") or "No se encontraron resultados."
                         messages.warning(request, mensaje)
                 else:
-                    messages.error(request, f"Error al consultar la guía. Código: {response.status_code}")
+                    messages.error(request, f"ScrapingBee [{response.status_code}]: {response.text[:300]}")
 
             except Exception as e:
                 messages.error(request, f"Error inesperado: {e}")
