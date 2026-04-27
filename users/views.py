@@ -211,10 +211,10 @@ class VistaCambiarContrasena(SuccessMessageMixin, PasswordChangeView):
 
 
 # ====================================================================
-# 🔍 CONSULTAR GUÍA — via ScrapingBee (proxy con IP real)
-# ScrapingBee actúa como navegador real y puede llamar a la API de
-# Interrapidísimo sin ser bloqueado por la allowlist de IPs.
-# Configurar en Render: SCRAPINGBEE_API_KEY
+# 🔍 CONSULTAR GUÍA — via servidor local + ngrok
+# El servidor local corre en tu PC (IP residencial) y puede acceder
+# a la API de Interrapidísimo sin ser bloqueado.
+# Variables de entorno en Render: SCRAPER_URL, SCRAPER_SECRET
 # ====================================================================
 @login_required
 def VistaConsultarGuia(request):
@@ -225,114 +225,51 @@ def VistaConsultarGuia(request):
         guia_consultada = request.POST.get('guia_a_consultar', '').strip()
 
         if guia_consultada:
-            scrapingbee_key = os.getenv('SCRAPINGBEE_API_KEY')
+            scraper_url = os.getenv('SCRAPER_URL', '').strip()
+            scraper_secret = os.getenv('SCRAPER_SECRET', '').strip()
 
-            if not scrapingbee_key:
-                messages.error(request, "El servicio de consulta no está configurado. Contacta al administrador.")
+            if not scraper_url:
+                messages.error(request, "El servidor de consultas no está activo. Asegúrate de tener ngrok corriendo.")
                 return render(request, "users/consultar_guia.html", {
                     "resultados": None,
                     "guia_consultada": guia_consultada,
                 })
 
             try:
-                id_consulta = str(uuid.uuid4())
-
-                url_tracking = (
-                    "https://apicm.interrapidisimo.com/ServiciosTrackingSTE/api/v1/"
-                    f"EstadoTracking/ObtenerEstadoTracking?numeroGuia={guia_consultada}"
-                )
-
-                # Paso 1: Registrar consulta (si falla continuamos igual)
-                try:
-                    req.post(
-                        "https://app.scrapingbee.com/api/v1/",
-                        params={
-                            "api_key": scrapingbee_key,
-                            "url": "https://apicm.interrapidisimo.com/ConsultaGuiasSTE/api/v1/ResultadoConsulta/ConsultarGuias",
-                            "render_js": "false",
-                            "forward_headers_pure": "true",
-                        },
-                        headers={
-                            "Content-Type": "application/json",
-                            "Accept": "application/json",
-                            "Idaplicacion": "39",
-                            "Origin": "https://siguetuenvio.interrapidisimo.com",
-                            "Referer": "https://siguetuenvio.interrapidisimo.com/",
-                        },
-                        json={"idConsulta": id_consulta},
-                        timeout=20,
-                    )
-                except Exception:
-                    pass  # Paso 1 es opcional
-
-                # Paso 2: Obtener estado de tracking
                 response = req.get(
-                    "https://app.scrapingbee.com/api/v1/",
-                    params={
-                        "api_key": scrapingbee_key,
-                        "url": url_tracking,
-                        "render_js": "false",
-                        "forward_headers_pure": "true",
-                    },
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                        "Idaplicacion": "39",
-                        "Authorization": id_consulta,
-                        "Origin": "https://siguetuenvio.interrapidisimo.com",
-                        "Referer": "https://siguetuenvio.interrapidisimo.com/",
-                    },
+                    f"{scraper_url}/scrape",
+                    params={"guia": guia_consultada},
+                    headers={"X-API-Secret": scraper_secret},
                     timeout=60,
                 )
 
                 if response.status_code == 200:
                     data = response.json()
 
-                    # Soportar tanto camelCase como PascalCase en la respuesta
-                    exito = data.get("operacionExitosa") or data.get("OperacionExitosa")
-                    resultado = data.get("resultado") or data.get("Resultado")
+                    if data.get("success") and data.get("eventos"):
+                        eventos = data["eventos"]
 
-                    if exito and resultado:
-                        tracking = resultado.get("tracking") or resultado.get("Tracking") or []
-                        ciudad_origen = resultado.get("ciudadBodegaOrigen") or resultado.get("CiudadBodegaOrigen") or "N/D"
-                        ciudad_destino = resultado.get("ciudadBodegaDestino") or resultado.get("CiudadBodegaDestino") or "N/D"
+                        ultimo = HistorialGuia.objects.aggregate(models.Max('consulta_id')).get("consulta_id__max")
+                        nuevo_consulta_id = (ultimo or 0) + 1
 
-                        eventos = []
-                        for item in tracking:
-                            fecha_completa = item.get("fechaEtapa") or item.get("FechaEtapa") or ""
-                            partes = fecha_completa.split(" ")
-                            eventos.append({
-                                "fecha": partes[0] if len(partes) > 0 else "N/D",
-                                "hora": partes[1] if len(partes) > 1 else "N/D",
-                                "estado": item.get("nombreEtapa") or item.get("NombreEtapa") or "N/D",
-                                "sucursal": f"{ciudad_origen} → {ciudad_destino}",
-                            })
+                        for evento in eventos:
+                            HistorialGuia.objects.create(
+                                usuario=request.user,
+                                consulta_id=nuevo_consulta_id,
+                                numero_guia=guia_consultada,
+                                fecha=evento["fecha"],
+                                hora=evento["hora"],
+                                estado=evento["estado"],
+                                sucursal=evento["sucursal"],
+                                fecha_consulta=datetime.now()
+                            )
 
-                        if eventos:
-                            ultimo = HistorialGuia.objects.aggregate(models.Max('consulta_id')).get("consulta_id__max")
-                            nuevo_consulta_id = (ultimo or 0) + 1
-
-                            for evento in eventos:
-                                HistorialGuia.objects.create(
-                                    usuario=request.user,
-                                    consulta_id=nuevo_consulta_id,
-                                    numero_guia=guia_consultada,
-                                    fecha=evento["fecha"],
-                                    hora=evento["hora"],
-                                    estado=evento["estado"],
-                                    sucursal=evento["sucursal"],
-                                    fecha_consulta=datetime.now()
-                                )
-
-                            resultados_consulta = eventos
-                            messages.success(request, "Guía consultada correctamente")
-                        else:
-                            messages.warning(request, "La guía existe pero aún no tiene eventos de rastreo.")
+                        resultados_consulta = eventos
+                        messages.success(request, "Guía consultada correctamente")
                     else:
-                        mensaje = data.get("mensaje") or data.get("Mensaje") or "No se encontraron resultados."
-                        messages.warning(request, mensaje)
+                        messages.warning(request, data.get("error", "No se encontraron eventos para esta guía."))
                 else:
-                    messages.error(request, f"ScrapingBee [{response.status_code}]: {response.text[:300]}")
+                    messages.error(request, f"Error al consultar la guía. Código: {response.status_code} - {response.text[:200]}")
 
             except Exception as e:
                 messages.error(request, f"Error inesperado: {e}")
