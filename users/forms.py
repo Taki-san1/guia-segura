@@ -66,6 +66,51 @@ class FormularioAcceso(AuthenticationForm):
         model = User
         fields = ['username', 'password', 'remember_me']
 
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        perfil = getattr(user, 'perfil', None)
+        if perfil and perfil.esta_bloqueado():
+            from django.utils import timezone
+            minutos = int((perfil.bloqueado_hasta - timezone.now()).total_seconds() / 60) + 1
+            raise forms.ValidationError(
+                f"Cuenta bloqueada por múltiples intentos fallidos. Intenta en {minutos} minuto(s)."
+            )
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        # Verificar bloqueo antes de autenticar
+        try:
+            user_obj = User.objects.get(username=username)
+            perfil = getattr(user_obj, 'perfil', None)
+            if perfil and perfil.esta_bloqueado():
+                from django.utils import timezone
+                minutos = int((perfil.bloqueado_hasta - timezone.now()).total_seconds() / 60) + 1
+                raise forms.ValidationError(
+                    f"Cuenta bloqueada. Intenta en {minutos} minuto(s)."
+                )
+        except User.DoesNotExist:
+            pass
+
+        try:
+            cleaned = super().clean()
+            # Login exitoso → resetear intentos
+            user_obj = self.get_user()
+            if user_obj:
+                perfil = getattr(user_obj, 'perfil', None)
+                if perfil:
+                    perfil.resetear_intentos()
+            return cleaned
+        except forms.ValidationError:
+            # Login fallido → registrar intento
+            try:
+                user_obj = User.objects.get(username=username)
+                perfil = getattr(user_obj, 'perfil', None)
+                if perfil:
+                    perfil.registrar_intento_fallido()
+            except User.DoesNotExist:
+                pass
+            raise
+
 
 class FormularioActualizarUsuario(forms.ModelForm): 
     username = forms.CharField(max_length=100,

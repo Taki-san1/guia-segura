@@ -22,3 +22,4 @@ media/profile_images/
 # IDE
 .idea/
 .vscode/
+servidor_local.py
