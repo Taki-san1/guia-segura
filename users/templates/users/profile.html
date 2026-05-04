@@ -3,18 +3,15 @@
 {% block content %}
     <div class="container my-3 p-3">
         <div class="row justify-content-center">
-            {# Contenedor principal para centrar el contenido (ancho limitado a 5/6 columnas) #}
             <div class="col-lg-6 col-md-8"> 
                 
-                {# 1. IMAGEN DE PERFIL (Centrada y con estilo fijo) #}
                 <div class="text-center mb-4">
                     <img class="rounded-circle account-img" 
-                         src="{{ user.perfil.avatar.url }} " 
+                         src="{{ user.perfil.avatar.url }}" 
                          style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;"
                          alt="Avatar del usuario"/>
                 </div>
 
-                {# Mensajes de error (Traducción y estilo Bootstrap 5) #}
                 {% if user_form.errors %}
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <div id="form_errors">
@@ -26,7 +23,6 @@
                     </div>
                 {% endif %}
 
-                {# 2. FORMULARIO #}
                 <div class="border p-4 mb-4">
                     <h2 class="text-center">Información de la Cuenta</h2>
                     <hr>
@@ -45,7 +41,6 @@
                             <hr>
                         </div>
                         
-                        {# Formulario de Perfil #}
                         <div class="form-group mb-3">
                             <label class="small mb-1" for="{{ profile_form.avatar.id_for_label }}">Cambiar Avatar:</label>
                             {{ profile_form.avatar }}
@@ -55,16 +50,25 @@
                             <label class="small mb-1" for="{{ profile_form.bio.id_for_label }}">Biografía:</label> 
                             {{ profile_form.bio }}
                         </div>
-                        
-                        
-                        {# 🚨 NUEVO BOTÓN PARA ADMINSTRAR USUARIOS 🚨 #}
-                        <div class="form-group mb-4 mt-5">
-                            <a href="{% url 'users-list' %}" class="btn btn-warning btn-lg w-100">
-                                <i class="fas fa-users"></i> Administrar Usuarios Registrados
+
+                        <div class="d-grid gap-2 mt-4 mb-2">
+                            <a href="{% url 'panel_usuarios' %}" class="btn btn-warning btn-lg">
+                                <i class="fas fa-users-cog"></i> Administrar Usuarios
+                            </a>
+                            <a href="{% url 'panel_guias' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-box-open"></i> Panel de Guías
+                            </a>
+                            <a href="{% url 'panel_notificaciones' %}" class="btn btn-info btn-lg text-white">
+                                <i class="fas fa-bell"></i> Historial de Notificaciones
+                            </a>
+                            <a href="{% url 'panel_logs_scraping' %}" class="btn btn-dark btn-lg">
+                                <i class="fas fa-bug"></i> Logs de Scraping
+                            </a>
+                            <a href="{% url 'panel_intentos_login' %}" class="btn btn-danger btn-lg">
+                                <i class="fas fa-lock"></i> Intentos de Login
                             </a>
                         </div>
                         
-                        {# 3. BOTONES (Centrados, con espacio vertical) #}
                         <div class="d-grid gap-2 d-md-flex justify-content-center mt-4">
                             <button type="submit" class="btn btn-dark btn-lg">Guardar Cambios</button>
                             <button type="reset" class="btn btn-dark btn-lg">Restablecer</button>

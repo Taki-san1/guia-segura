@@ -1,13 +1,10 @@
 {% extends "users/base.html" %}
 {% load static %}
-
 {% block content %}
 <div class="container mt-4">
-
     <h2 class="fw-bold mb-4">
         <i class="fas fa-box"></i> Consultas Guardadas
     </h2>
-
     <form method="get" class="card card-body mb-3 shadow-sm">
         <div class="row g-2 align-items-end">
             <div class="col-md-3">
@@ -32,18 +29,23 @@
         </div>
     </form>
 
-    <div class="mb-3">
+    <div class="mb-3 d-flex gap-2 flex-wrap">
         <a href="{% url 'exportar_guias' %}?{{ request.GET.urlencode }}" class="btn btn-success">
             <i class="fas fa-file-excel"></i> Exportar Excel
         </a>
-        <a href="{% url 'reporte_guias_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger">
+        <a href="{% url 'exportar_guias_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger">
             <i class="fas fa-file-pdf"></i> Exportar PDF
         </a>
-        <a href="{% url 'panel_logs_scraping' %}" class="btn btn-secondary">Logs scraping</a>
-        <a href="{% url 'panel_notificaciones' %}" class="btn btn-secondary">Notificaciones</a>
-        <a href="{% url 'panel_intentos_login' %}" class="btn btn-secondary">Intentos login</a>
+        <a href="{% url 'panel_logs_scraping' %}" class="btn btn-secondary">
+            <i class="fas fa-bug"></i> Logs scraping
+        </a>
+        <a href="{% url 'panel_notificaciones' %}" class="btn btn-secondary">
+            <i class="fas fa-bell"></i> Notificaciones
+        </a>
+        <a href="{% url 'panel_intentos_login' %}" class="btn btn-secondary">
+            <i class="fas fa-lock"></i> Intentos login
+        </a>
     </div>
-
 
     {% if consultas %}
     <div class="table-responsive shadow-sm rounded">
@@ -74,10 +76,8 @@
             </tbody>
         </table>
     </div>
-
     {% else %}
         <div class="alert alert-info">No hay consultas guardadas aún.</div>
     {% endif %}
-
 </div>
 {% endblock %}

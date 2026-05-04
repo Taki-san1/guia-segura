@@ -1,21 +1,67 @@
 {% extends "users/base.html" %}
+{% block title %}Intentos de Login{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <h2 class="fw-bold mb-4">Intentos de login</h2>
-    <a href="{% url 'panel_guias' %}" class="btn btn-secondary mb-3">Volver</a>
-    <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover align-middle">
-            <thead class="table-primary">
-                <tr><th>Usuario</th><th>Intentos fallidos</th><th>Bloqueado hasta</th><th>Último intento</th></tr>
-            </thead>
-            <tbody>
-            {% for i in intentos %}
-                <tr><td>{{ i.username }}</td><td>{{ i.intentos_fallidos }}</td><td>{{ i.bloqueado_hasta|default:"-" }}</td><td>{{ i.ultimo_intento }}</td></tr>
-            {% empty %}
-                <tr><td colspan="4" class="text-center">No hay intentos registrados.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold"><i class="fas fa-lock"></i> Intentos de Login</h2>
+        <a href="{% url 'panel_guias' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if intentos %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Intentos fallidos</th>
+                            <th>Bloqueado hasta</th>
+                            <th>Último intento</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for intento in intentos %}
+                        <tr>
+                            <td><strong>{{ intento.username }}</strong></td>
+                            <td>
+                                <span class="badge {% if intento.intentos_fallidos >= 5 %}bg-danger{% elif intento.intentos_fallidos >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+                                    {{ intento.intentos_fallidos }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if intento.bloqueado_hasta %}
+                                    <span class="text-danger fw-bold">{{ intento.bloqueado_hasta|date:"d/m/Y H:i" }}</span>
+                                {% else %}
+                                    <span class="text-success">Sin bloqueo</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ intento.ultimo_intento|date:"d/m/Y H:i" }}</td>
+                            <td class="text-center">
+                                {% if intento.bloqueado_hasta %}
+                                <a href="{% url 'desbloquear_cuenta' intento.id %}"
+                                   class="btn btn-sm btn-success"
+                                   onclick="return confirm('¿Desbloquear a {{ intento.username }}?')">
+                                    <i class="fas fa-unlock"></i> Desbloquear
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-unlock-alt fa-3x text-success mb-3"></i>
+                <p>No hay intentos de login registrados.</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

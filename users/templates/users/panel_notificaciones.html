@@ -1,21 +1,55 @@
 {% extends "users/base.html" %}
+{% block title %}Historial de Notificaciones{% endblock %}
 {% block content %}
 <div class="container mt-4">
-    <h2 class="fw-bold mb-4">Historial de notificaciones</h2>
-    <a href="{% url 'panel_guias' %}" class="btn btn-secondary mb-3">Volver</a>
-    <div class="table-responsive shadow-sm rounded">
-        <table class="table table-hover align-middle">
-            <thead class="table-primary">
-                <tr><th>Fecha</th><th>Guía</th><th>Canal</th><th>Destinatario</th><th>Mensaje</th><th>Enviado</th></tr>
-            </thead>
-            <tbody>
-            {% for n in notificaciones %}
-                <tr><td>{{ n.fecha }}</td><td>{{ n.numero_guia }}</td><td>{{ n.canal }}</td><td>{{ n.destinatario }}</td><td>{{ n.mensaje }}</td><td>{{ n.enviado }}</td></tr>
-            {% empty %}
-                <tr><td colspan="6" class="text-center">No hay notificaciones registradas.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold"><i class="fas fa-bell"></i> Historial de Notificaciones</h2>
+        <a href="{% url 'panel_guias' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if notificaciones %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Guía</th>
+                            <th>Canal</th>
+                            <th>Destinatario</th>
+                            <th>Mensaje</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for n in notificaciones %}
+                        <tr>
+                            <td class="text-nowrap">{{ n.fecha|date:"d/m/Y H:i" }}</td>
+                            <td><strong>{{ n.numero_guia }}</strong></td>
+                            <td><span class="badge bg-primary">{{ n.canal }}</span></td>
+                            <td>{{ n.destinatario }}</td>
+                            <td class="text-muted small">{{ n.mensaje|truncatechars:80 }}</td>
+                            <td class="text-center">
+                                {% if n.enviado %}
+                                    <span class="badge bg-success">Enviado</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Fallido</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                <p>No hay notificaciones registradas.</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
