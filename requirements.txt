@@ -8,3 +8,4 @@ openpyxl
 social-auth-app-django
 whitenoise
 gunicorn
+reportlab

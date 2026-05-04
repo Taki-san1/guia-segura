@@ -1,0 +1,21 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">Logs de scraping</h2>
+    <a href="{% url 'panel_guias' %}" class="btn btn-secondary mb-3">Volver</a>
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr><th>Fecha</th><th>Guía</th><th>Tipo</th><th>Mensaje</th></tr>
+            </thead>
+            <tbody>
+            {% for log in logs %}
+                <tr><td>{{ log.fecha }}</td><td>{{ log.numero_guia }}</td><td>{{ log.tipo_error }}</td><td>{{ log.mensaje }}</td></tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center">No hay logs registrados.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

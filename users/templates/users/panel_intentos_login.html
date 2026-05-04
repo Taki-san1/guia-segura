@@ -1,0 +1,21 @@
+{% extends "users/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">Intentos de login</h2>
+    <a href="{% url 'panel_guias' %}" class="btn btn-secondary mb-3">Volver</a>
+    <div class="table-responsive shadow-sm rounded">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr><th>Usuario</th><th>Intentos fallidos</th><th>Bloqueado hasta</th><th>Último intento</th></tr>
+            </thead>
+            <tbody>
+            {% for i in intentos %}
+                <tr><td>{{ i.username }}</td><td>{{ i.intentos_fallidos }}</td><td>{{ i.bloqueado_hasta|default:"-" }}</td><td>{{ i.ultimo_intento }}</td></tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-center">No hay intentos registrados.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
