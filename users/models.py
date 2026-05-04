@@ -48,5 +48,38 @@ class HistorialGuia(models.Model):
     fecha_consulta = models.DateTimeField()
     activo = models.BooleanField(default=True)   # 🔥 NUEVO
 
-    
-    
+# =====================================================
+# SPRINT 4 - SEGURIDAD, LOGS Y NOTIFICACIONES
+# =====================================================
+class IntentoLogin(models.Model):
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    username = models.CharField(max_length=150)
+    intentos_fallidos = models.IntegerField(default=0)
+    bloqueado_hasta = models.DateTimeField(null=True, blank=True)
+    ultimo_intento = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.username} - {self.intentos_fallidos} intentos"
+
+
+class ScrapingLog(models.Model):
+    numero_guia = models.CharField(max_length=200)
+    tipo_error = models.CharField(max_length=120, blank=True)
+    mensaje = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.numero_guia} - {self.tipo_error}"
+
+
+class HistorialNotificacion(models.Model):
+    numero_guia = models.CharField(max_length=200)
+    canal = models.CharField(max_length=50)
+    destinatario = models.CharField(max_length=255, blank=True)
+    mensaje = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
+    enviado = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.numero_guia} - {self.canal} - {self.fecha}"
+

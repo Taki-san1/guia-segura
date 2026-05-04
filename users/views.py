@@ -23,7 +23,7 @@ from .forms import (
     FormularioActualizarUsuario,
     FormularioActualizarPerfil,
 )
-from .models import Perfil, HistorialGuia
+from .models import Perfil, HistorialGuia, ScrapingLog, HistorialNotificacion, IntentoLogin
 
 from django.contrib.auth.decorators import user_passes_test
 
@@ -34,6 +34,9 @@ from django.http import HttpResponse
 from django.core.mail import EmailMessage
 from io import BytesIO
 from django.conf import settings
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from .services import ejecutar_con_reintentos, enviar_estado_api_cliente
 
 
 # ====================================================================
@@ -194,7 +197,14 @@ class VistaListaUsuarios(UserPassesTestMixin, ListView):
 
 
 class VistaAccesoPersonalizada(LoginView):
-    pass
+    template_name = 'users/login.html'
+    authentication_form = FormularioAcceso
+
+    def form_valid(self, form):
+        remember_me = form.cleaned_data.get('remember_me')
+        if not remember_me:
+            self.request.session.set_expiry(0)
+        return super().form_valid(form)
 
 
 class VistaRestablecerContrasena(SuccessMessageMixin, PasswordResetView):
@@ -236,12 +246,15 @@ def VistaConsultarGuia(request):
                 })
 
             try:
-                response = req.get(
-                    f"{scraper_url}/scrape",
-                    params={"guia": guia_consultada},
-                    headers={"X-API-Secret": scraper_secret},
-                    timeout=60,
-                )
+                def consultar_scraper():
+                    return req.get(
+                        f"{scraper_url}/scrape",
+                        params={"guia": guia_consultada},
+                        headers={"X-API-Secret": scraper_secret},
+                        timeout=60,
+                    )
+
+                response = ejecutar_con_reintentos(consultar_scraper, intentos=3, espera_inicial=2)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -264,14 +277,38 @@ def VistaConsultarGuia(request):
                                 fecha_consulta=datetime.now()
                             )
 
+                        # SPRINT 5 - Integración con API del cliente en formato JSON
+                        ultimo_evento = eventos[-1]
+                        respuesta_cliente = enviar_estado_api_cliente({
+                            "numero_guia": guia_consultada,
+                            "consulta_id": nuevo_consulta_id,
+                            "estado": ultimo_evento.get("estado"),
+                            "fecha": ultimo_evento.get("fecha"),
+                            "hora": ultimo_evento.get("hora"),
+                            "sucursal": ultimo_evento.get("sucursal"),
+                        })
+
+                        HistorialNotificacion.objects.create(
+                            numero_guia=guia_consultada,
+                            canal="sistema",
+                            destinatario=request.user.email or request.user.username,
+                            mensaje=f"Consulta creada. Respuesta API cliente: {respuesta_cliente}",
+                            enviado=bool(respuesta_cliente.get("success", True)),
+                        )
+
                         resultados_consulta = eventos
                         messages.success(request, "Guía consultada correctamente")
                     else:
-                        messages.warning(request, data.get("error", "No se encontraron eventos para esta guía."))
+                        error_msg = data.get("error", "No se encontraron eventos para esta guía.")
+                    ScrapingLog.objects.create(numero_guia=guia_consultada, tipo_error="sin_resultados", mensaje=error_msg)
+                    messages.warning(request, error_msg)
                 else:
-                    messages.error(request, f"Error al consultar la guía. Código: {response.status_code} - {response.text[:200]}")
+                    error_msg = f"Error al consultar la guía. Código: {response.status_code} - {response.text[:200]}"
+                    ScrapingLog.objects.create(numero_guia=guia_consultada, tipo_error="http", mensaje=error_msg)
+                    messages.error(request, error_msg)
 
             except Exception as e:
+                ScrapingLog.objects.create(numero_guia=guia_consultada, tipo_error="excepcion", mensaje=str(e))
                 messages.error(request, f"Error inesperado: {e}")
 
     return render(request, "users/consultar_guia.html", {
@@ -285,14 +322,38 @@ def VistaConsultarGuia(request):
 # ====================================================================
 @user_passes_test(es_admin)
 def panel_guias(request):
+    registros = HistorialGuia.objects.filter(activo=True)
+
+    fecha_inicio = request.GET.get("fecha_inicio")
+    fecha_fin = request.GET.get("fecha_fin")
+    estado = request.GET.get("estado")
+    usuario = request.GET.get("usuario")
+
+    if fecha_inicio:
+        registros = registros.filter(fecha_consulta__date__gte=fecha_inicio)
+    if fecha_fin:
+        registros = registros.filter(fecha_consulta__date__lte=fecha_fin)
+    if estado:
+        registros = registros.filter(estado__icontains=estado)
+    if usuario:
+        registros = registros.filter(usuario__username__icontains=usuario)
+
     consultas = (
-        HistorialGuia.objects
-        .filter(activo=True)
-        .values("consulta_id", "numero_guia", "usuario_id")
+        registros
+        .values("consulta_id", "numero_guia", "usuario__username")
         .annotate(total_eventos=models.Count("id"))
         .order_by("-consulta_id")
     )
-    return render(request, "users/guias_panel.html", {"consultas": consultas})
+
+    return render(request, "users/guias_panel.html", {
+        "consultas": consultas,
+        "filtros": {
+            "fecha_inicio": fecha_inicio or "",
+            "fecha_fin": fecha_fin or "",
+            "estado": estado or "",
+            "usuario": usuario or "",
+        }
+    })
 
 
 # ====================================================================
@@ -410,14 +471,32 @@ def restaurar_evento(request, consulta_id, evento_id):
     return redirect("detalle_consulta_inactivos", consulta_id=consulta_id)
 
 
+
+
+def obtener_registros_guias_filtrados(request):
+    registros = HistorialGuia.objects.filter(activo=True)
+    fecha_inicio = request.GET.get("fecha_inicio")
+    fecha_fin = request.GET.get("fecha_fin")
+    estado = request.GET.get("estado")
+    usuario = request.GET.get("usuario")
+
+    if fecha_inicio:
+        registros = registros.filter(fecha_consulta__date__gte=fecha_inicio)
+    if fecha_fin:
+        registros = registros.filter(fecha_consulta__date__lte=fecha_fin)
+    if estado:
+        registros = registros.filter(estado__icontains=estado)
+    if usuario:
+        registros = registros.filter(usuario__username__icontains=usuario)
+
+    return registros.order_by("numero_guia", "consulta_id", "fecha_consulta")
+
 # ====================================================================
 # 📊 EXPORTAR EXCEL
 # ====================================================================
 @user_passes_test(es_admin)
 def exportar_guias_excel(request):
-    registros = HistorialGuia.objects.filter(activo=True).order_by(
-        "numero_guia", "consulta_id", "fecha_consulta"
-    )
+    registros = obtener_registros_guias_filtrados(request)
 
     if not registros.exists():
         messages.warning(request, "No hay registros activos para exportar.")
@@ -467,6 +546,13 @@ def exportar_guias_excel(request):
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
             mensaje.send()
+            HistorialNotificacion.objects.create(
+                numero_guia="REPORTE",
+                canal="email",
+                destinatario=request.user.email,
+                mensaje="Reporte de guías Excel enviado al correo del usuario.",
+                enviado=True,
+            )
             messages.success(request, f"Reporte enviado a {request.user.email}")
         except Exception as e:
             messages.error(request, f"Error enviando correo: {e}")
@@ -479,3 +565,64 @@ def exportar_guias_excel(request):
     )
     response["Content-Disposition"] = 'attachment; filename="reporte_guias.xlsx"'
     return response
+
+# ====================================================================
+# 📄 EXPORTAR PDF - SPRINT 5
+# ====================================================================
+@user_passes_test(es_admin)
+def exportar_guias_pdf(request):
+    registros = obtener_registros_guias_filtrados(request)
+
+    if not registros.exists():
+        messages.warning(request, "No hay registros activos para exportar.")
+        return redirect("panel_guias")
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="reporte_guias.pdf"'
+
+    pdf = canvas.Canvas(response, pagesize=letter)
+    ancho, alto = letter
+    y = alto - 50
+
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(40, y, "Reporte consolidado de guías")
+    y -= 30
+    pdf.setFont("Helvetica", 8)
+
+    encabezado = "ID | Guía | Usuario | Fecha evento | Hora | Estado | Sucursal | Fecha consulta"
+    pdf.drawString(40, y, encabezado)
+    y -= 15
+
+    for r in registros:
+        linea = f"{r.consulta_id} | {r.numero_guia} | {r.usuario.username if r.usuario else ''} | {r.fecha or ''} | {r.hora or ''} | {r.estado or ''} | {r.sucursal or ''} | {r.fecha_consulta.strftime('%Y-%m-%d %H:%M') if r.fecha_consulta else ''}"
+        pdf.drawString(40, y, linea[:150])
+        y -= 14
+        if y < 50:
+            pdf.showPage()
+            pdf.setFont("Helvetica", 8)
+            y = alto - 50
+
+    pdf.save()
+    return response
+
+
+# ====================================================================
+# 🧾 HISTORIALES ADMINISTRATIVOS - SPRINT 4
+# ====================================================================
+@user_passes_test(es_admin)
+def panel_logs_scraping(request):
+    logs = ScrapingLog.objects.order_by("-fecha")[:100]
+    return render(request, "users/panel_logs_scraping.html", {"logs": logs})
+
+
+@user_passes_test(es_admin)
+def panel_notificaciones(request):
+    notificaciones = HistorialNotificacion.objects.order_by("-fecha")[:100]
+    return render(request, "users/panel_notificaciones.html", {"notificaciones": notificaciones})
+
+
+@user_passes_test(es_admin)
+def panel_intentos_login(request):
+    intentos = IntentoLogin.objects.order_by("-ultimo_intento")[:100]
+    return render(request, "users/panel_intentos_login.html", {"intentos": intentos})
+

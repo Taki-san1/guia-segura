@@ -8,11 +8,42 @@
         <i class="fas fa-box"></i> Consultas Guardadas
     </h2>
 
-    <a href="{% url 'exportar_guias' %}" class="btn btn-success mb-3">
-        <i class="fas fa-file-excel"></i> Exportar Reporte Excel
-    </a>
+    <form method="get" class="card card-body mb-3 shadow-sm">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" name="fecha_inicio" value="{{ filtros.fecha_inicio }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" name="fecha_fin" value="{{ filtros.fecha_fin }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <input type="text" name="estado" value="{{ filtros.estado }}" class="form-control" placeholder="Estado">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Usuario</label>
+                <input type="text" name="usuario" value="{{ filtros.usuario }}" class="form-control" placeholder="Usuario">
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </div>
+    </form>
 
-    
+    <div class="mb-3">
+        <a href="{% url 'exportar_guias' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+        </a>
+        <a href="{% url 'reporte_guias_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-danger">
+            <i class="fas fa-file-pdf"></i> Exportar PDF
+        </a>
+        <a href="{% url 'panel_logs_scraping' %}" class="btn btn-secondary">Logs scraping</a>
+        <a href="{% url 'panel_notificaciones' %}" class="btn btn-secondary">Notificaciones</a>
+        <a href="{% url 'panel_intentos_login' %}" class="btn btn-secondary">Intentos login</a>
+    </div>
+
 
     {% if consultas %}
     <div class="table-responsive shadow-sm rounded">
@@ -31,7 +62,7 @@
                 <tr>
                     <td>{{ c.consulta_id }}</td>
                     <td>{{ c.numero_guia }}</td>
-                    <td>{{ c.usuario }}</td>
+                    <td>{{ c.usuario__username }}</td>
                     <td>{{ c.total_eventos }}</td>
                     <td class="text-center">
                         <a href="{% url 'detalle_consulta' c.consulta_id %}" class="btn btn-primary btn-sm">

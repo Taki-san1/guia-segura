@@ -1,8 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth import authenticate
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from datetime import timedelta
 
-from .models import Perfil 
+from .models import Perfil, IntentoLogin
 
 
 class FormularioRegistro(UserCreationForm): 
@@ -46,21 +50,51 @@ class FormularioRegistro(UserCreationForm):
         fields = ['first_name', 'last_name', 'username', 'email', 'password1', 'password2']
 
 
-class FormularioAcceso(AuthenticationForm): 
-    username = forms.CharField(max_length=100,
-                               required=True,
-                               widget=forms.TextInput(attrs={'placeholder': 'Username',
-                                                             'class': 'form-control',
-                                                             }))
-    password = forms.CharField(max_length=50,
-                               required=True,
-                               widget=forms.PasswordInput(attrs={'placeholder': 'Password',
-                                                                 'class': 'form-control',
-                                                                 'data-toggle': 'password',
-                                                                 'id': 'password',
-                                                                 'name': 'password',
-                                                                 }))
+class FormularioAcceso(AuthenticationForm):
+    username = forms.CharField(max_length=100, required=True, widget=forms.TextInput(attrs={
+        'placeholder': 'Username', 'class': 'form-control'
+    }))
+    password = forms.CharField(max_length=50, required=True, widget=forms.PasswordInput(attrs={
+        'placeholder': 'Password', 'class': 'form-control', 'data-toggle': 'password',
+        'id': 'password', 'name': 'password'
+    }))
     remember_me = forms.BooleanField(required=False)
+
+    MAX_INTENTOS = 5
+    MINUTOS_BLOQUEO = 15
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username and password:
+            intento, _ = IntentoLogin.objects.get_or_create(username=username)
+
+            if intento.bloqueado_hasta and intento.bloqueado_hasta > timezone.now():
+                raise ValidationError(
+                    f"Usuario bloqueado temporalmente hasta {intento.bloqueado_hasta.strftime('%Y-%m-%d %H:%M')} por varios intentos fallidos."
+                )
+
+            self.user_cache = authenticate(self.request, username=username, password=password)
+
+            if self.user_cache is None:
+                intento.intentos_fallidos += 1
+                usuario = User.objects.filter(username=username).first()
+                if usuario:
+                    intento.usuario = usuario
+                if intento.intentos_fallidos >= self.MAX_INTENTOS:
+                    intento.bloqueado_hasta = timezone.now() + timedelta(minutes=self.MINUTOS_BLOQUEO)
+                    intento.intentos_fallidos = 0
+                intento.save()
+                raise self.get_invalid_login_error()
+
+            intento.usuario = self.user_cache
+            intento.intentos_fallidos = 0
+            intento.bloqueado_hasta = None
+            intento.save()
+            self.confirm_login_allowed(self.user_cache)
+
+        return self.cleaned_data
 
     class Meta:
         model = User
