@@ -49,4 +49,8 @@ urlpatterns = [
     path('panel/logs/notificaciones/', views.panel_notificaciones, name='panel_notificaciones'),
     path('panel/logs/intentos/', views.panel_intentos_login, name='panel_intentos_login'),
     path('panel/logs/intentos/desbloquear/<int:intento_id>/', views.desbloquear_cuenta, name='desbloquear_cuenta'),
+    # --- USUARIO NORMAL ---
+    path('mis-guias/excel/', views.mis_guias_excel, name='mis_guias_excel'),
+    path('mis-guias/pdf/', views.mis_guias_pdf, name='mis_guias_pdf'),
+    path('mis-notificaciones/', views.mis_notificaciones, name='mis_notificaciones'),
 ]

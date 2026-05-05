@@ -688,3 +688,111 @@ def desbloquear_cuenta(request, intento_id):
     intento.save()
     messages.success(request, f"Cuenta '{intento.username}' desbloqueada.")
     return redirect("panel_intentos_login")
+
+
+# ====================================================================
+# 📊 EXPORTAR GUÍAS DEL USUARIO (Excel y PDF)
+# ====================================================================
+@login_required
+def mis_guias_excel(request):
+    registros = HistorialGuia.objects.filter(
+        usuario=request.user, activo=True
+    ).order_by("consulta_id", "fecha_consulta")
+
+    if not registros.exists():
+        messages.warning(request, "No tienes guías guardadas para exportar.")
+        return redirect("users-profile")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Mis Guías"
+
+    columnas = ["ID Consulta", "Número de Guía", "Fecha evento", "Hora", "Estado", "Sucursal", "Fecha consulta"]
+    for col_num, titulo in enumerate(columnas, 1):
+        ws.cell(row=1, column=col_num, value=titulo)
+
+    for fila, r in enumerate(registros, 2):
+        ws.cell(row=fila, column=1, value=r.consulta_id)
+        ws.cell(row=fila, column=2, value=r.numero_guia)
+        ws.cell(row=fila, column=3, value=r.fecha)
+        ws.cell(row=fila, column=4, value=r.hora)
+        ws.cell(row=fila, column=5, value=r.estado)
+        ws.cell(row=fila, column=6, value=r.sucursal)
+        ws.cell(row=fila, column=7, value=r.fecha_consulta.strftime("%Y-%m-%d %H:%M:%S") if r.fecha_consulta else "")
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    excel_bytes = buffer.getvalue()
+
+    # Registrar notificación
+    HistorialNotificacion.objects.create(
+        numero_guia="REPORTE_PROPIO",
+        canal="sistema",
+        destinatario=request.user.username,
+        mensaje=f"El usuario descargó su reporte Excel personal.",
+        enviado=True,
+    )
+
+    response = HttpResponse(
+        excel_bytes,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="mis_guias_{request.user.username}.xlsx"'
+    return response
+
+
+@login_required
+def mis_guias_pdf(request):
+    registros = HistorialGuia.objects.filter(
+        usuario=request.user, activo=True
+    ).order_by("consulta_id", "fecha_consulta")
+
+    if not registros.exists():
+        messages.warning(request, "No tienes guías guardadas para exportar.")
+        return redirect("users-profile")
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="mis_guias_{request.user.username}.pdf"'
+
+    pdf = canvas.Canvas(response, pagesize=letter)
+    ancho, alto = letter
+    y = alto - 50
+
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(40, y, f"Mis guías — {request.user.username}")
+    y -= 30
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(40, y, "ID | Guía | Fecha | Hora | Estado | Sucursal")
+    y -= 15
+
+    for r in registros:
+        linea = f"{r.consulta_id} | {r.numero_guia} | {r.fecha or ''} | {r.hora or ''} | {r.estado or ''} | {r.sucursal or ''}"
+        pdf.drawString(40, y, linea[:140])
+        y -= 14
+        if y < 50:
+            pdf.showPage()
+            pdf.setFont("Helvetica", 8)
+            y = alto - 50
+
+    pdf.save()
+
+    HistorialNotificacion.objects.create(
+        numero_guia="REPORTE_PROPIO",
+        canal="sistema",
+        destinatario=request.user.username,
+        mensaje=f"El usuario descargó su reporte PDF personal.",
+        enviado=True,
+    )
+
+    return response
+
+
+@login_required
+def mis_notificaciones(request):
+    notificaciones = HistorialNotificacion.objects.filter(
+        destinatario__in=[request.user.email, request.user.username]
+    ).order_by("-fecha")[:50]
+    return render(request, "users/mis_notificaciones.html", {
+        "notificaciones": notificaciones,
+    })

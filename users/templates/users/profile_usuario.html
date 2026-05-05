@@ -2,14 +2,12 @@
 {% block title %}Profile Page{% endblock title %}
 {% block content %}
 <div class="container mt-4">
-    {# Se centra el formulario y se limita el ancho en el escritorio para la organización #}
     <div class="row justify-content-center"> 
         <div class="col-md-8"> 
 
-            {# CAMBIO: Se ajusta la imagen de perfil para que tenga un tamaño fijo y se centra #}
             <div class="row my-3 p-3 text-center"> 
                 <img class="rounded-circle account-img mx-auto" 
-                    src="{{ user.perfil.avatar.url }} " 
+                    src="{{ user.perfil.avatar.url }}" 
                     style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;"
                     alt="Avatar del usuario"/>
             </div>
@@ -19,6 +17,26 @@
                     <i class="fas fa-search"></i> Consultar Número de Guía
                 </a>
             </div>
+
+            <!-- Botones de reportes del usuario -->
+            <div class="row my-2 px-3 g-2">
+                <div class="col-6">
+                    <a href="{% url 'mis_guias_excel' %}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Mis guías en Excel
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="{% url 'mis_guias_pdf' %}" class="btn btn-danger w-100">
+                        <i class="fas fa-file-pdf"></i> Mis guías en PDF
+                    </a>
+                </div>
+                <div class="col-12">
+                    <a href="{% url 'mis_notificaciones' %}" class="btn btn-info w-100 text-white">
+                        <i class="fas fa-bell"></i> Mis Notificaciones
+                    </a>
+                </div>
+            </div>
+
             {% if user_form.errors %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <div id="form_errors">
@@ -26,12 +44,11 @@
                             <strong>{{ value }}</strong>
                         {% endfor %}
                     </div>
-                    {# NOTA: Usé 'data-bs-dismiss' (Bootstrap 5). Si no funciona, por favor, vuelve a usar 'data-dismiss' #}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endif %}
 
-            <div class="card p-4 shadow-sm bg-white border-0">
+            <div class="card p-4 shadow-sm bg-white border-0 mt-3">
                 <h3 class="card-title text-center fw-bold text-primary mb-3">{{ user.username | upper }}</h3>
                 <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
@@ -51,8 +68,6 @@
                         <label class="small mb-1 mt-3">Bio:</label> {{ profile_form.bio }}
                     </div>
                     <br>
-                    
-                    {# Mantenemos y reorganizamos los botones sin modificar su texto #}
                     <div class="row justify-content-center mt-4">
                         <div class="col-auto">
                             <button type="submit" class="btn btn-dark btn-lg">Save Changes</button>
