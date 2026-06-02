@@ -1,0 +1,57 @@
+{% extends "users/base.html" %}
+{% block title %}Detalle de usuario - GuiaSegura{% endblock title %}
+{% block content %}
+<div class="page-shell">
+    <div class="page-header">
+        <div>
+            <span class="page-kicker"><i class="fas fa-id-card"></i> Perfil administrativo</span>
+            <h1 class="page-title">{{ usuario.username }}</h1>
+            <p class="page-subtitle">Informacion del usuario y consultas de guia asociadas.</p>
+        </div>
+        <div class="actions-bar">
+            <a href="{% url 'editar_usuario' usuario.id %}" class="btn btn-primary"><i class="fas fa-pen me-2"></i>Editar</a>
+            <a href="{% url 'panel_usuarios' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Volver</a>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+        <aside class="glass-card profile-identity">
+            {% if perfil %}<img class="avatar-xl mb-3" src="{{ perfil.avatar.url }}" alt="Avatar de usuario">{% else %}<div class="brand-mark mx-auto mb-3" style="width:120px;height:120px;border-radius:36px;"><i class="fas fa-user fa-3x"></i></div>{% endif %}
+            <h2 class="fw-bold mb-1">{{ usuario.get_full_name|default:usuario.username }}</h2>
+            <p class="text-muted mb-3">{{ usuario.email|default:"Sin correo" }}</p>
+            <div class="info-tile-grid text-start">
+                <div class="info-tile"><span class="info-label">Estado</span><span class="info-value">{% if usuario.is_active %}Activo{% else %}Inactivo{% endif %}</span></div>
+                <div class="info-tile"><span class="info-label">Rol</span><span class="info-value">{% if usuario.is_superuser %}Superusuario{% elif usuario.is_staff %}Staff{% else %}Normal{% endif %}</span></div>
+            </div>
+        </aside>
+
+        <section class="section-card">
+            <div class="card-pad">
+                <h3 class="fw-bold mb-3"><i class="fas fa-box-open me-2 text-primary"></i>Guias consultadas</h3>
+                {% if guias %}
+                <div class="table-card shadow-none">
+                    <div class="table-responsive">
+                        <table class="table table-modern align-middle">
+                            <thead><tr><th>ID consulta</th><th>Guia</th><th>Eventos</th><th>Ultima consulta</th><th></th></tr></thead>
+                            <tbody>
+                                {% for g in guias %}
+                                <tr>
+                                    <td data-label="ID">#{{ g.consulta_id }}</td>
+                                    <td data-label="Guia">{{ g.numero_guia }}</td>
+                                    <td data-label="Eventos"><span class="badge bg-info">{{ g.total_eventos }}</span></td>
+                                    <td data-label="Ultima">{{ g.ultima|date:"d/m/Y H:i" }}</td>
+                                    <td data-label="Acciones"><a href="{% url 'detalle_consulta' g.consulta_id %}" class="btn btn-primary btn-sm"><i class="fas fa-eye me-1"></i>Ver</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state"><i class="fas fa-inbox fa-3x mb-3"></i><h3 class="fw-bold">Sin guias</h3><p class="mb-0">Este usuario aun no tiene consultas guardadas.</p></div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock content %}

@@ -52,6 +52,8 @@ urlpatterns = [
     path('panel/guias/<int:consulta_id>/ajax-eventos/', views.ajax_eventos_guia, name='ajax_eventos_guia'),
     path('panel/logs/intentos/desbloquear/<int:intento_id>/', views.desbloquear_cuenta, name='desbloquear_cuenta'),
     # --- USUARIO NORMAL ---
+    path('mis-guias/', views.mis_guias, name='mis_guias'),
+    path('mis-guias/<int:consulta_id>/', views.mis_guia_detalle, name='mis_guia_detalle'),
     path('mis-guias/excel/', views.mis_guias_excel, name='mis_guias_excel'),
     path('mis-guias/pdf/', views.mis_guias_pdf, name='mis_guias_pdf'),
     path('mis-notificaciones/', views.mis_notificaciones, name='mis_notificaciones'),

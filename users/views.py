@@ -1129,6 +1129,72 @@ def desbloquear_cuenta(request, intento_id):
     return redirect("panel_intentos_login")
 
 
+
+
+@login_required
+def mis_guias(request):
+    """Muestra solo las guías consultadas por el usuario autenticado.
+
+    Es una vista de solo lectura para usuarios normales: no expone acciones de
+    creación, edición, eliminación ni restauración de eventos.
+    """
+    registros = HistorialGuia.objects.filter(usuario=request.user, activo=True)
+
+    fecha_inicio = request.GET.get("fecha_inicio", "").strip()
+    fecha_fin = request.GET.get("fecha_fin", "").strip()
+    estado = request.GET.get("estado", "").strip()
+    numero_guia = request.GET.get("numero_guia", "").strip()
+
+    if fecha_inicio:
+        registros = registros.filter(fecha_consulta__date__gte=fecha_inicio)
+    if fecha_fin:
+        registros = registros.filter(fecha_consulta__date__lte=fecha_fin)
+    if estado:
+        registros = registros.filter(estado__icontains=estado)
+    if numero_guia:
+        registros = registros.filter(numero_guia__icontains=numero_guia)
+
+    consultas = (
+        registros
+        .values("consulta_id", "numero_guia")
+        .annotate(
+            total_eventos=models.Count("id"),
+            ultima_consulta=models.Max("fecha_consulta"),
+        )
+        .order_by("-ultima_consulta", "-consulta_id")
+    )
+
+    return render(request, "users/mis_guias.html", {
+        "consultas": consultas,
+        "filtros": {
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "estado": estado,
+            "numero_guia": numero_guia,
+        },
+    })
+
+
+@login_required
+def mis_guia_detalle(request, consulta_id):
+    """Detalle de una consulta propia, sin acciones de modificación."""
+    eventos = (
+        HistorialGuia.objects
+        .filter(consulta_id=consulta_id, usuario=request.user, activo=True)
+        .order_by("id")
+    )
+
+    if not eventos.exists():
+        messages.error(request, "No se encontró esa guía dentro de tus consultas.")
+        return redirect("mis_guias")
+
+    return render(request, "users/mis_guias_detalle.html", {
+        "consulta_id": consulta_id,
+        "numero_guia": eventos.first().numero_guia,
+        "eventos": eventos,
+    })
+
+
 # ====================================================================
 # 📊 EXPORTAR GUÍAS DEL USUARIO (Excel y PDF)
 # ====================================================================
