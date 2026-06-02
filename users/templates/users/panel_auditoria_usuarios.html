@@ -95,6 +95,7 @@
             <thead class="table-primary">
                 <tr>
                     <th>Fecha y hora</th>
+                    <th>ID</th>
                     <th>Usuario</th>
                     <th>Criterio</th>
                     <th>Acción</th>
@@ -107,6 +108,13 @@
             {% for log in logs %}
                 <tr>
                     <td>{{ log.fecha|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        {% if log.usuario %}
+                            {{ log.usuario.id }}
+                        {% else %}
+                            <span class="text-muted">No aplica</span>
+                        {% endif %}
+                    </td>
                     <td class="fw-semibold">{{ log.username|default:"Anónimo" }}</td>
                     <td>{{ log.criterio }}</td>
                     <td>{{ log.accion }}</td>
