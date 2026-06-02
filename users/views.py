@@ -696,7 +696,7 @@ def panel_guias(request):
 
     consultas = (
         registros
-        .values("consulta_id", "numero_guia", "usuario__username")
+        .values("consulta_id", "numero_guia", "usuario__id", "usuario__username")
         .annotate(total_eventos=models.Count("id"))
         .order_by("-consulta_id")
     )
